@@ -34,10 +34,6 @@ public:
     detection_msgs::BoundingBox BoundingBox_msg;
     detection_msgs::BoundingBoxes BoundingBoxes_msg;
 
-    ros::Subscriber realsense_RGB_sub;
-    ros::Subscriber realsense_Depth_sub;
-    ros::Subscriber BoundingBoxes_sub;
-
     BoundingBox_Info bounding_info;
     
     message_filters::Subscriber<detection_msgs::BoundingBoxes> bbox_sub;
@@ -57,9 +53,7 @@ public:
     }
 
 public:
-    void realsense_RGB_callback(const sensor_msgs::CameraInfo::Ptr&msg);
-    void realsense_Depth_callback(const sensor_msgs::PointCloud2::Ptr&msg);
-    void BoundingBoxes_callback(const detection_msgs::BoundingBoxes::ConstPtr& msg);
+   
     void realcallback(const detection_msgs::BoundingBoxesConstPtr& bbox, const sensor_msgs::ImageConstPtr& depth);
 };
 
@@ -67,25 +61,15 @@ void cm_detect::realcallback(const detection_msgs::BoundingBoxesConstPtr& bbox, 
 {
     ROS_WARN_STREAM("T.T");
 
+    // Below code is a comparison bbox time and depth time because we want to know to use ApproximateTime
+    // ROS_WARN_STREAM(bbox->header.stamp.sec);
+    // std::cerr << "BBox time : " << bbox -> header.stamp.sec << std::endl;
+    // std::cerr << "Depth Image time : " << depth -> header.stamp.sec << std::endl;
+
+    // convert depth image in bbox to pointcloud
 
 }
 
-void cm_detect::realsense_RGB_callback(const sensor_msgs::CameraInfo::Ptr&msg)
-{
-
-}
-
-void cm_detect::realsense_Depth_callback(const sensor_msgs::PointCloud2::Ptr&msg)
-{
-
-}
-
-void cm_detect::BoundingBoxes_callback(const detection_msgs::BoundingBoxes::ConstPtr& msg)
-{
-    ROS_WARN_STREAM("BBox Callback");
-    // bounding_info.box_xmax = msg -> xmax;
-    // ROS_WARN_STREAM(bounding_info.box_xmax);
-}
 
 int main(int argc, char **argv) 
 {
