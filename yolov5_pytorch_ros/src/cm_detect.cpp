@@ -68,8 +68,6 @@ void cm_detect::realcallback(const detection_msgs::BoundingBoxesConstPtr& bbox, 
 {
     ROS_WARN_STREAM("T.T");
         ROS_WARN_STREAM("T.T");
-            ROS_WARN_STREAM("T.T");
-
 }
 
 void cm_detect::realsense_RGB_callback(const sensor_msgs::CameraInfo::Ptr&msg)
