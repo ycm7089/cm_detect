@@ -6,22 +6,23 @@ find_package(catkin REQUIRED
     geometry_msgs
     sensor_msgs
     std_msgs
+    detection_msgs
     roscpp
     message_filters
     message_generation)
 
-add_message_files(
-  FILES
-    BoundingBox.msg
-    BoundingBoxes.msg
-)
+#add_message_files(
+#  FILES
+#    BoundingBox.msg
+#    BoundingBoxes.msg
+#)
 
-generate_messages(
-  DEPENDENCIES
-    geometry_msgs
-    sensor_msgs
-    std_msgs
-)
+#generate_messages(
+#  DEPENDENCIES
+#    geometry_msgs
+#    sensor_msgs
+#    std_msgs
+#)
 
 catkin_package()
 
