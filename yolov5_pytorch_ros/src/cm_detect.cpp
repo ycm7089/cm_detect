@@ -14,6 +14,7 @@
 
 #include <yolov5_pytorch_ros/BoundingBox.h>
 #include <yolov5_pytorch_ros/BoundingBoxes.h>
+#include <detection_msgs/BoundingBoxes.h>
 
 typedef struct
 {
@@ -25,6 +26,8 @@ typedef struct
     int box_ymax;
 
 } BoundingBox_Info;
+
+typedef message_filters::sync_policies::ApproximateTime<detection_msgs::BoundingBoxes, sensor_msgs::Image> MySyncPolicy;
 
 class cm_detect
 {
@@ -38,50 +41,50 @@ public:
 
     BoundingBox_Info bounding_info;
     
+    message_filters::Subscriber<detection_msgs::BoundingBoxes> image1_sub;
+    message_filters::Subscriber<sensor_msgs::Image> image2_sub;
+    message_filters::Synchronizer<MySyncPolicy> sync;
+
     cm_detect(ros::NodeHandle *nh)
+        : sync(MySyncPolicy(100), image1_sub, image2_sub)
     {
         std::cerr << "cm_detect()" << std::endl;
-        //RGB Depth Boundingbox Sub
-        // realsense_RGB_sub = nh->subscribe("/camera/color/camera_info",1, &cm_detect::realsense_RGB_callback,this);
-        // realsense_Depth_sub = nh->subscribe("/camera/depth/image_raw",1, &cm_detect::realsense_Depth_callback,this); 
-        // BoundingBoxes_sub = nh->subscribe("/yolov5/detections",1, &cm_detect::BoundingBoxes_callback,this); 
 
-        // message_filters::Subscriber<sensor_msgs::CameraInfo> camera_info_sub (*nh,"/yolov5/detections",1);
-        // message_filters::Subscriber<sensor_msgs::Image> depth_sub(*nh, "/camera/depth/image_raw", 1);
-        // message_filters::TimeSynchronizer<sensor_msgs::Image, sensor_msgs::PointCloud2> sync(camera_info_sub, depth_sub, 10);
-        // sync.registerCallback(boost::bind(&cm_detect::realcallback,this, _1, _2));
+        image1_sub.subscribe(*nh, "/yolov5/detections", 100);
+        image2_sub.subscribe(*nh, "/camera/depth/image_rect_raw", 100);
 
-        message_filters::Subscriber<sensor_msgs::Image> image1_sub(*nh, "/camera/depth/image_rect_raw", 1);
-        message_filters::Subscriber<sensor_msgs::CompressedImage> image2_sub(*nh, "/camera/color/image_raw/compressed", 1);
-
-        typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::CompressedImage> MySyncPolicy;
-        // ApproximateTime takes a queue size as its constructor argument, hence MySyncPolicy(10)
-        message_filters::Synchronizer<MySyncPolicy> sync(MySyncPolicy(10), image1_sub, image2_sub);
         sync.registerCallback(boost::bind(&cm_detect::realcallback, this,_1, _2));
-
+        ROS_WARN_STREAM("z");
     }
+
 public:
     void realsense_RGB_callback(const sensor_msgs::CameraInfo::Ptr&msg);
     void realsense_Depth_callback(const sensor_msgs::PointCloud2::Ptr&msg);
     void BoundingBoxes_callback(const yolov5_pytorch_ros::BoundingBoxes::ConstPtr& msg);
-    void realcallback(const sensor_msgs::ImageConstPtr& image, const sensor_msgs::CompressedImageConstPtr& cam_info);
+    void realcallback(const detection_msgs::BoundingBoxesConstPtr& bbox, const sensor_msgs::ImageConstPtr& depth);
 };
 
-void cm_detect::realcallback(const sensor_msgs::ImageConstPtr& image, const sensor_msgs::CompressedImageConstPtr& cam_info)
+void cm_detect::realcallback(const detection_msgs::BoundingBoxesConstPtr& bbox, const sensor_msgs::ImageConstPtr& depth)
 {
     ROS_WARN_STREAM("YES");
+
 }
+
 void cm_detect::realsense_RGB_callback(const sensor_msgs::CameraInfo::Ptr&msg)
 {
 
 }
+
 void cm_detect::realsense_Depth_callback(const sensor_msgs::PointCloud2::Ptr&msg)
 {
 
 }
+
 void cm_detect::BoundingBoxes_callback(const yolov5_pytorch_ros::BoundingBoxes::ConstPtr& msg)
 {
     ROS_WARN_STREAM("BBox Callback");
+    // bounding_info.box_xmax = msg -> xmax;
+    // ROS_WARN_STREAM(bounding_info.box_xmax);
 }
 
 int main(int argc, char **argv) 
@@ -90,8 +93,7 @@ int main(int argc, char **argv)
     ros::init(argc,argv,"detection_node");
     ros::NodeHandle nh("~");
     
-    cm_detect data_sub(&nh);
-   
+    cm_detect data_sub(&nh);   
 
     // while loop
     ros::Rate loop_rate(1); //Hz
