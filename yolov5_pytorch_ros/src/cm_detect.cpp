@@ -40,17 +40,17 @@ public:
 
     BoundingBox_Info bounding_info;
     
-    message_filters::Subscriber<detection_msgs::BoundingBoxes> image1_sub;
-    message_filters::Subscriber<sensor_msgs::Image> image2_sub;
+    message_filters::Subscriber<detection_msgs::BoundingBoxes> bbox_sub;
+    message_filters::Subscriber<sensor_msgs::Image> depth_sub;
     message_filters::Synchronizer<MySyncPolicy> sync;
 
     cm_detect(ros::NodeHandle *nh)
-        : sync(MySyncPolicy(100), image1_sub, image2_sub)
+        : sync(MySyncPolicy(100), bbox_sub, depth_sub)
     {
         std::cerr << "cm_detect()" << std::endl;
 
-        image1_sub.subscribe(*nh, "/yolov5/detections", 100);
-        image2_sub.subscribe(*nh, "/camera/depth/image_rect_raw", 100);
+        bbox_sub.subscribe(*nh, "/yolov5/detections", 100);
+        depth_sub.subscribe(*nh, "/camera/depth/image_rect_raw", 100);
 
         sync.registerCallback(boost::bind(&cm_detect::realcallback, this,_1, _2));
         ROS_WARN_STREAM("z");
@@ -66,6 +66,8 @@ public:
 void cm_detect::realcallback(const detection_msgs::BoundingBoxesConstPtr& bbox, const sensor_msgs::ImageConstPtr& depth)
 {
     ROS_WARN_STREAM("T.T");
+
+
 }
 
 void cm_detect::realsense_RGB_callback(const sensor_msgs::CameraInfo::Ptr&msg)
