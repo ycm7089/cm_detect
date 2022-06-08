@@ -16,7 +16,7 @@
 #include <detection_msgs/BoundingBoxes.h>
 
 // below is fatal error: opencv2/core/core.hpp: No such file or directory
-// #include <opencv2/core/core.hpp>
+// #include <opencv2/core/core.h>
 
 using namespace std;
 
@@ -67,9 +67,11 @@ void cm_detect::realcallback(const detection_msgs::BoundingBoxesConstPtr& bbox, 
     ROS_WARN_STREAM("T.T");
 
     // Below code is a comparison bbox time and depth time because we want to know to use ApproximateTime
-    // ROS_WARN_STREAM(bbox->header.stamp.sec);
-    // std::cout << "BBox time : " << bbox -> header.stamp.sec << std::endl;
-    // std::cout << "Depth Image time : " << depth -> header.stamp.sec << std::endl;
+    ROS_WARN_STREAM(bbox -> header.stamp.sec);
+    ROS_WARN_STREAM(depth -> header.stamp.sec);
+    
+    std::cout << "BBox time : " << bbox -> header.stamp.sec << std::endl;
+    std::cout << "Depth Image time : " << depth -> header.stamp.sec << std::endl;
 
     // subscribe the bbox data
     bounding_info.box_class = bbox -> bounding_boxes[0].Class;
@@ -89,7 +91,7 @@ void cm_detect::realcallback(const detection_msgs::BoundingBoxesConstPtr& bbox, 
     // std::cout << "Type : " << depth.type() << std::endl; // CV_8UC1 = 0
 
     // convert depth image in bbox to pointcloud
-    if(bounding_info.box_class == "person" & bounding_info.box_probability >= 0.7)
+    if(bounding_info.box_class == "person" & bounding_info.box_probability >= 0.5)
     {
         ROS_WARN_STREAM("Yes");
         // cv::Mat convert_image;
