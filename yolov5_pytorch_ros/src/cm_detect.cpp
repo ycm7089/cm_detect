@@ -66,7 +66,9 @@ public:
 
 void cm_detect::realcallback(const detection_msgs::BoundingBoxesConstPtr& bbox, const sensor_msgs::ImageConstPtr& depth)
 {
-    ROS_WARN_STREAM("YES");
+    ROS_WARN_STREAM("T.T");
+        ROS_WARN_STREAM("T.T");
+            ROS_WARN_STREAM("T.T");
 
 }
 
