@@ -108,6 +108,9 @@ void cm_detect::realcallback(const detection_msgs::BoundingBoxesConstPtr& bbox, 
         double avr_v = (bounding_info.box_ymin + bounding_info.box_ymax)/2;
         double avr_u = (bounding_info.box_xmin + bounding_info.box_xmax)/2;
 
+        double depth_x = 0.5 * bounding_info.box_xmax;
+        double depth_y = 2 * bounding_info.box_ymax / 3;
+
         for(int u = bounding_info.box_xmin; u < bounding_info.box_xmax; u++)
         {
             for(int v = bounding_info.box_ymin; v < bounding_info.box_ymax; v++)    
@@ -126,7 +129,7 @@ void cm_detect::realcallback(const detection_msgs::BoundingBoxesConstPtr& bbox, 
             }
         }
     }
-    
+
     // convert depth image in bbox to pointcloud
     if(bounding_info.box_class == "person" & bounding_info.box_probability >= 0.5)
     {
