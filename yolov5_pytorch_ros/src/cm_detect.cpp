@@ -17,16 +17,18 @@
 #include <detection_msgs/BoundingBoxes.h>
 
 // below is fatal error: opencv2/core/core.hpp: No such file or directory
-// #include <opencv2/core/core.h>
+#include <opencv2/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <image_transport/image_transport.h>
 #include <cv_bridge/cv_bridge.h>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/opencv.hpp>
 
+using namespace std;
+
 typedef struct
 {
-    std::string box_class;
+    string box_class;
     double box_probability;
     int box_xmin;
     int box_ymin;
@@ -57,10 +59,16 @@ public:
     }
 
 public:
-   double f_x = 469.45703125;
-   double f_y = 468.9375;
-   double c_x = 353.50390625;
-   double c_y = 243.98046875;
+    //L515
+    // double f_x = 469.45703125;
+    // double f_y = 468.9375;
+    // double c_x = 353.50390625;
+    // double c_y = 243.98046875;
+
+    double f_x = 613.8178100585938;
+    double f_y = 612.3670043945312;
+    double c_x = 326.2353210449219;
+    double c_y = 244.34783935546875;
 
 
     void realcallback(const detection_msgs::BoundingBoxesConstPtr& bbox, const sensor_msgs::ImageConstPtr& depth);
@@ -85,11 +93,11 @@ void cm_detect::realcallback(const detection_msgs::BoundingBoxesConstPtr& bbox, 
         // if (bounding_info.box_ymin < 0) bounding_info.box_ymin = 0;
         // if (bounding_info.box_ymax > 719) bounding_info.box_ymax = 719;
 
-        ROS_INFO("x min : %d" ,bounding_info.box_xmin);
-        ROS_INFO("x max : %d", bounding_info.box_xmax);
+        // ROS_INFO("x min : %d" ,bounding_info.box_xmin);
+        // ROS_INFO("x max : %d", bounding_info.box_xmax);
 
-        ROS_INFO("y min : %d", bounding_info.box_ymin);
-        ROS_INFO("y max : %d", bounding_info.box_ymax);
+        // ROS_INFO("y min : %d", bounding_info.box_ymin);
+        // ROS_INFO("y max : %d", bounding_info.box_ymax);
     
         cv_bridge::CvImagePtr cv_ptr;
         try
@@ -103,20 +111,45 @@ void cm_detect::realcallback(const detection_msgs::BoundingBoxesConstPtr& bbox, 
         }
 
         cv::Mat& depth_mat = cv_ptr->image;
-        // std::cout << "zz : " << depth_mat.size() << std::endl;
+        std::cout << "Size : " << depth_mat.size() << std::endl;
+        ROS_WARN_STREAM("zzz");
 
         double avr_v = (bounding_info.box_ymin + bounding_info.box_ymax)/2;
         double avr_u = (bounding_info.box_xmin + bounding_info.box_xmax)/2;
 
-        double depth_x = 0.5 * bounding_info.box_xmax;
-        double depth_y = 2 * bounding_info.box_ymax / 3;
+        // int xmax_s = static_cast<int>(0.5 * bounding_info.box_xmax);
+        // int xmin_s = static_cast<int>(0.5 * bounding_info.box_xmin);
+        // int ymax_s = static_cast<int>(2.0 * bounding_info.box_ymax / 3.0);
+        // int ymin_s = static_cast<int>(2.0 * bounding_info.box_ymin / 3.0);
 
-        for(int u = bounding_info.box_xmin; u < bounding_info.box_xmax; u++)
+        // int xmax_s = ( 848 * bounding_info.box_xmax ) / 640;        
+        // int xmin_s = ( 848 * bounding_info.box_xmin ) / 640;
+
+        int xmax_s = bounding_info.box_xmax;        
+        int xmin_s = bounding_info.box_xmin;
+        int ymax_s = bounding_info.box_ymax;
+        int ymin_s = bounding_info.box_ymin;
+        // To draw rect
+        cv::Mat depth8;
+        depth_mat.convertTo(depth8, CV_8UC1);
+        cv::Mat depth8_3c;
+        cv::cvtColor(depth8, depth8_3c, cv::COLOR_GRAY2RGB);
+
+        cv::Rect rect(xmin_s, ymin_s, xmax_s-xmin_s, ymax_s-ymin_s);
+        cv::rectangle(depth8_3c, rect, cv::Scalar(0,0,255), 2);
+
+        cv::imshow("depth8_3c", depth8_3c);
+        cv::waitKey(1);
+
+
+        for(int u = xmin_s; u < xmax_s; u++)
         {
-            for(int v = bounding_info.box_ymin; v < bounding_info.box_ymax; v++)    
+            for(int v = ymin_s; v < ymax_s; v++)
             {
-                double z = depth_mat.at<unsigned short>(avr_v ,avr_u) * 0.001; // unit : [m]
+                // cout << "(u, v) = " << "(" << u << ", " << v << ")" << endl;
+                double z = depth_mat.at<unsigned short>(v ,u) * 0.001; // unit : [m]
                 // float z = depth_mat.at<unsigned short>(v ,u) * 0.001;
+
                 if (z!=0) 
                 {
                     // std::cout << "depth_unsigned_short : " << z << "m"<< std::endl;
@@ -124,7 +157,7 @@ void cm_detect::realcallback(const detection_msgs::BoundingBoxesConstPtr& bbox, 
                     double x = (u - c_x) * z / f_x;
                     double y = (v - c_y) * z / f_y;
 
-                    std::cout << "x : " << x << " y : " << y << std::endl;
+                    // cout << "x : " << x << " y : " << y << endl;
                 }
             }
         }
