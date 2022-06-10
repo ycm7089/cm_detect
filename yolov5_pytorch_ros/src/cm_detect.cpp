@@ -60,15 +60,15 @@ public:
 
 public:
     //L515
-    // double f_x = 469.45703125;
-    // double f_y = 468.9375;
-    // double c_x = 353.50390625;
-    // double c_y = 243.98046875;
+    double f_x = 469.45703125;
+    double f_y = 468.9375;
+    double c_x = 353.50390625;
+    double c_y = 243.98046875;
 
-    double f_x = 613.8178100585938;
-    double f_y = 612.3670043945312;
-    double c_x = 326.2353210449219;
-    double c_y = 244.34783935546875;
+    // double f_x = 613.8178100585938;
+    // double f_y = 612.3670043945312;
+    // double c_x = 326.2353210449219;
+    // double c_y = 244.34783935546875;
 
 
     void realcallback(const detection_msgs::BoundingBoxesConstPtr& bbox, const sensor_msgs::ImageConstPtr& depth);
@@ -117,18 +117,17 @@ void cm_detect::realcallback(const detection_msgs::BoundingBoxesConstPtr& bbox, 
         double avr_v = (bounding_info.box_ymin + bounding_info.box_ymax)/2;
         double avr_u = (bounding_info.box_xmin + bounding_info.box_xmax)/2;
 
-        // int xmax_s = static_cast<int>(0.5 * bounding_info.box_xmax);
-        // int xmin_s = static_cast<int>(0.5 * bounding_info.box_xmin);
-        // int ymax_s = static_cast<int>(2.0 * bounding_info.box_ymax / 3.0);
-        // int ymin_s = static_cast<int>(2.0 * bounding_info.box_ymin / 3.0);
+        // L515
+        int xmax_s = static_cast<int>(0.5 * bounding_info.box_xmax);
+        int xmin_s = static_cast<int>(0.5 * bounding_info.box_xmin);
+        int ymax_s = static_cast<int>(2.0 * bounding_info.box_ymax / 3.0);
+        int ymin_s = static_cast<int>(2.0 * bounding_info.box_ymin / 3.0);
 
-        // int xmax_s = ( 848 * bounding_info.box_xmax ) / 640;        
-        // int xmin_s = ( 848 * bounding_info.box_xmin ) / 640;
+        // int xmax_s = static_cast<int>( 848 * bounding_info.box_xmax / 640);        
+        // int xmin_s = static_cast<int>( 848 * bounding_info.box_xmin / 640);
+        // int ymax_s = bounding_info.box_ymax;
+        // int ymin_s = bounding_info.box_ymin;
 
-        int xmax_s = bounding_info.box_xmax;        
-        int xmin_s = bounding_info.box_xmin;
-        int ymax_s = bounding_info.box_ymax;
-        int ymin_s = bounding_info.box_ymin;
         // To draw rect
         cv::Mat depth8;
         depth_mat.convertTo(depth8, CV_8UC1);
