@@ -34,83 +34,66 @@ public:
 
 void cm_clustering::detection_callback(const sensor_msgs::PointCloud2::Ptr&msg)
 {
-  // ROS_WARN_STREAM("Yes");
-  // detection_point.x = msg -> x;
-  // detection_point.y = msg -> y;
-  // detection_point.z = msg -> z;
-  // ROS_WARN_STREAM(detection_point.x);
-  // ROS_WARN_STREAM(detection_point.y);
-  // ROS_WARN_STREAM(detection_point.z);
+  ROS_WARN_STREAM("Yes");
+  pcl::fromROSMsg(*msg,*cloud);
 
   segmentation();
 }
 
 void cm_clustering::segmentation()
 {
-  // cloud = detection_point;
-  // // *cloud.push_back(detection_point.x, detection_point.y, detection_point.z);
+  pcl::search::Search<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ>);
+  pcl::PointCloud <pcl::Normal>::Ptr normals (new pcl::PointCloud <pcl::Normal>);
+  pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> normal_estimator;
+  normal_estimator.setSearchMethod (tree);
+  normal_estimator.setInputCloud (cloud);
+  normal_estimator.setKSearch (50);
+  normal_estimator.compute (*normals);
 
-  // pcl::search::Search<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ>);
-  // pcl::PointCloud <pcl::Normal>::Ptr normals (new pcl::PointCloud <pcl::Normal>);
-  // pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> normal_estimator;
-  // normal_estimator.setSearchMethod (tree);
-  // normal_estimator.setInputCloud (cloud);
-  // normal_estimator.setKSearch (50);
-  // normal_estimator.compute (*normals);
+  pcl::IndicesPtr indices (new std::vector <int>);
+  pcl::PassThrough<pcl::PointXYZ> pass;
+  pass.setInputCloud (cloud);
+  pass.setFilterFieldName ("z");
+  pass.setFilterLimits (0.0, 1.0);
+  pass.filter (*indices);
 
-  // pcl::IndicesPtr indices (new std::vector <int>);
-  // pcl::PassThrough<pcl::PointXYZ> pass;
-  // pass.setInputCloud (cloud);
-  // pass.setFilterFieldName ("z");
-  // pass.setFilterLimits (0.0, 1.0);
-  // pass.filter (*indices);
-
-  // pcl::RegionGrowing<pcl::PointXYZ, pcl::Normal> reg;
-  // // reg.setMinClusterSize (100);
-  // // reg.setMaxClusterSize (1000000);
-  // // reg.setSearchMethod (tree);
-  // // reg.setNumberOfNeighbours (30);
-  // // reg.setInputCloud (cloud);
-  // // // reg.setIndices (indices);
-  // // reg.setInputNormals (normals);
-  // // reg.setSmoothnessThreshold (4.0 / 180.0 * M_PI); //색 골고루 나오게 하려면 1.0 에서 증가 시키자~!!
-  // // reg.setCurvatureThreshold (1.0);
-
-  // reg.setMinClusterSize (50);
+  pcl::RegionGrowing<pcl::PointXYZ, pcl::Normal> reg;
+  // reg.setMinClusterSize (100);
   // reg.setMaxClusterSize (1000000);
   // reg.setSearchMethod (tree);
   // reg.setNumberOfNeighbours (30);
   // reg.setInputCloud (cloud);
-  // //reg.setIndices (indices);
+  // // reg.setIndices (indices);
   // reg.setInputNormals (normals);
-  // reg.setSmoothnessThreshold (3.0 / 180.0 * M_PI);
+  // reg.setSmoothnessThreshold (4.0 / 180.0 * M_PI); //색 골고루 나오게 하려면 1.0 에서 증가 시키자~!!
   // reg.setCurvatureThreshold (1.0);
 
-  // std::vector <pcl::PointIndices> clusters;
-  // reg.extract (clusters);
+  reg.setMinClusterSize (50);
+  reg.setMaxClusterSize (1000000);
+  reg.setSearchMethod (tree);
+  reg.setNumberOfNeighbours (30);
+  reg.setInputCloud (cloud);
+  //reg.setIndices (indices);
+  reg.setInputNormals (normals);
+  reg.setSmoothnessThreshold (3.0 / 180.0 * M_PI);
+  reg.setCurvatureThreshold (1.0);
 
-  // std::cout << "Number of clusters is equal to " << clusters.size () << std::endl;
-  // std::cout << "First cluster has " << clusters[0].indices.size () << " points." << std::endl;
-  // std::cout << "These are the indices of the points of the initial" <<
-  // std::endl << "cloud that belong to the first cluster:" << std::endl;
-  // int counter = 0;
-  // // while (counter < clusters[0].indices.size ())
-  // // {
-  //   // std::cout << clusters[0].indices[counter] << ", ";
-  //   // counter++;
-  //   // if (counter % 10 == 0)
-  //     // std::cout << std::endl;
-  // // }
-  // // std::cout << std::endl;
-  // sensor_msgs::PointCloud2 cloud_out;
-  // pcl::PointCloud<pcl::PointXYZRGB>::Ptr colored_cloud = reg.getColoredCloud ();
-  // std::cout << cloud->points[0].x << std::endl;
-  // pcl::toROSMsg(*colored_cloud, cloud_out); //pcl -> pointcloud
-  // ROS_WARN_STREAM("sadasd");
-  // // cloud_out.header.frame_id = "camera_link";
-  // // cloud_out.header.stamp = ros::Time::now();
-  // ROS_WARN_STREAM("camera_link!");
-  // seg_pub.publish(cloud_out);
+  std::vector <pcl::PointIndices> clusters;
+  reg.extract (clusters);
+
+  std::cout << "Number of clusters is equal to " << clusters.size () << std::endl;
+  std::cout << "First cluster has " << clusters[0].indices.size () << " points." << std::endl;
+  std::cout << "These are the indices of the points of the initial" <<
+  std::endl << "cloud that belong to the first cluster:" << std::endl;
+
+  sensor_msgs::PointCloud2 cloud_out;
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr colored_cloud = reg.getColoredCloud ();
+  std::cout << cloud->points[0].x << std::endl;
+  pcl::toROSMsg(*colored_cloud, cloud_out); //pcl -> pointcloud
+  cloud_out.header.frame_id = "map";
+  cloud_out.header.stamp = ros::Time::now();
+  ROS_WARN_STREAM("map!");
+  seg_pub.publish(cloud_out);
 }
 
 int main(int argc, char** argv)
@@ -118,12 +101,13 @@ int main(int argc, char** argv)
   ros::init(argc, argv, "Clustering_node");
   
   ros::NodeHandle nh("~");
+  ros::Rate loop_rate(10); //Hz
 
   cm_clustering clustering(&nh);
   while (ros::ok())
   {
     ros::spinOnce();
-
+    loop_rate.sleep();
   }  
   return (0);
 }

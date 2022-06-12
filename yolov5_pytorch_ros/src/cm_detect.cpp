@@ -20,15 +20,10 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/opencv.hpp>
 
+#include <pcl_conversions/pcl_conversions.h>
 #include <pcl/point_types.h>
-#include <pcl/io/pcd_io.h>
-#include <pcl/search/search.h>
-#include <pcl/search/kdtree.h>
-#include <pcl/features/normal_3d.h>
-#include <pcl/visualization/cloud_viewer.h>
-#include <pcl/filters/passthrough.h>
-#include <pcl/segmentation/region_growing.h>
-#include<pcl_conversions/pcl_conversions.h>
+#include <pcl/PCLPointCloud2.h>
+#include <pcl/conversions.h>
 
 using namespace std;
 
@@ -48,7 +43,6 @@ typedef message_filters::sync_policies::ApproximateTime<detection_msgs::Bounding
 class cm_detect
 {
 public:
-
     BoundingBox_Info bounding_info;
     
     message_filters::Subscriber<detection_msgs::BoundingBoxes> bbox_sub;
@@ -70,7 +64,6 @@ public:
        
         cloud_pub = nh->advertise<sensor_msgs::PointCloud2>("PointXYZ",1);
     }
-
 public:
     //L515
     double f_x = 469.45703125;
@@ -82,8 +75,6 @@ public:
     // double f_y = 612.3670043945312;
     // double c_x = 326.2353210449219;
     // double c_y = 244.34783935546875;
-
-
     void realcallback(const detection_msgs::BoundingBoxesConstPtr& bbox, const sensor_msgs::ImageConstPtr& depth);
 };
 
@@ -111,7 +102,6 @@ void cm_detect::realcallback(const detection_msgs::BoundingBoxesConstPtr& bbox, 
             ROS_ERROR("cv_bridge exception : %s", e.what());
             return;
         }
-
         cv::Mat& depth_mat = cv_ptr->image;
         // std::cout << "Size : " << depth_mat.size() << std::endl;
 
@@ -142,10 +132,9 @@ void cm_detect::realcallback(const detection_msgs::BoundingBoxesConstPtr& bbox, 
         {
             for(int v = ymin_s; v < ymax_s; v++)
             {
-                // cout << "(u, v) = " << "(" << u << ", " << v << ")" << endl;
                 double z = depth_mat.at<unsigned short>(v ,u) * 0.001; // unit : [m]
 
-                if (z!=0) 
+                if (z!=0 & bounding_info.box_class == "person") 
                 {
                     double x = (u - c_x) * z / f_x;
                     double y = (v - c_y) * z / f_y;
@@ -163,12 +152,6 @@ void cm_detect::realcallback(const detection_msgs::BoundingBoxesConstPtr& bbox, 
             }
         }
     }
-
-    // convert depth image in bbox to pointcloud
-    if(bounding_info.box_class == "person" & bounding_info.box_probability >= 0.5)
-    {
-        // ROS_WARN_STREAM("Yes");
-    }
 }
 
 int main(int argc, char **argv) 
@@ -178,7 +161,7 @@ int main(int argc, char **argv)
     
     cm_detect data_sub(&nh);   
 
-    ros::Rate loop_rate(1); //Hz
+    ros::Rate loop_rate(10); //Hz
     while(ros::ok())
     {
         ros::spinOnce();
