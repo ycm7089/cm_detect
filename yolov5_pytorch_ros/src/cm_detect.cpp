@@ -134,7 +134,7 @@ void cm_detect::realcallback(const detection_msgs::BoundingBoxesConstPtr& bbox, 
             {
                 double z = depth_mat.at<unsigned short>(v ,u) * 0.001; // unit : [m]
 
-                if (z!=0 & bounding_info.box_class == "person") 
+                if (z!=0 && bounding_info.box_class == "person") 
                 {
                     double x = (u - c_x) * z / f_x;
                     double y = (v - c_y) * z / f_y;
