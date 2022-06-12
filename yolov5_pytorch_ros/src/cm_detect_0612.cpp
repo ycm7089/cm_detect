@@ -2,9 +2,9 @@
 #include <vector>
 #include <ros/ros.h>
 #include <sensor_msgs/PointCloud2.h>
-#include <sensor_msgs/PointCloud.h>
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/image_encodings.h>
+#include <geometry_msgs/Point.h>
 
 #include <message_filters/subscriber.h>
 #include <message_filters/synchronizer.h>
@@ -19,16 +19,6 @@
 #include <cv_bridge/cv_bridge.h>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/opencv.hpp>
-
-#include <pcl/point_types.h>
-#include <pcl/io/pcd_io.h>
-#include <pcl/search/search.h>
-#include <pcl/search/kdtree.h>
-#include <pcl/features/normal_3d.h>
-#include <pcl/visualization/cloud_viewer.h>
-#include <pcl/filters/passthrough.h>
-#include <pcl/segmentation/region_growing.h>
-#include<pcl_conversions/pcl_conversions.h>
 
 using namespace std;
 
@@ -54,11 +44,8 @@ public:
     message_filters::Subscriber<detection_msgs::BoundingBoxes> bbox_sub;
     message_filters::Subscriber<sensor_msgs::Image> depth_sub;
     message_filters::Synchronizer<MySyncPolicy> sync;
-    ros::Publisher cloud_pub;
-
-    pcl::PointCloud<pcl::PointXYZ> cloud;
-    sensor_msgs::PointCloud2 cloud_out;
-    pcl::PointXYZ pt;
+    ros::Publisher Point_pub;
+    geometry_msgs::Point Point_xyz;
 
     cm_detect(ros::NodeHandle *nh)
         : sync(MySyncPolicy(100), bbox_sub, depth_sub)
@@ -67,8 +54,8 @@ public:
         depth_sub.subscribe(*nh, "/camera/depth/image_rect_raw", 100);
 
         sync.registerCallback(boost::bind(&cm_detect::realcallback, this,_1, _2));
-       
-        cloud_pub = nh->advertise<sensor_msgs::PointCloud2>("PointXYZ",1);
+
+        Point_pub = nh->advertise<geometry_msgs::Point>("PointXYZ",1);
     }
 
 public:
@@ -100,6 +87,17 @@ void cm_detect::realcallback(const detection_msgs::BoundingBoxesConstPtr& bbox, 
         bounding_info.box_ymin = bbox -> bounding_boxes[0].ymin;
         bounding_info.box_xmax = bbox -> bounding_boxes[0].xmax;
         bounding_info.box_ymax = bbox -> bounding_boxes[0].ymax;
+
+        // if (bounding_info.box_xmin < 0) bounding_info.box_xmin = 0;
+        // if (bounding_info.box_xmax > 1279) bounding_info.box_xmax = 1279;
+        // if (bounding_info.box_ymin < 0) bounding_info.box_ymin = 0;
+        // if (bounding_info.box_ymax > 719) bounding_info.box_ymax = 719;
+
+        // ROS_INFO("x min : %d" ,bounding_info.box_xmin);
+        // ROS_INFO("x max : %d", bounding_info.box_xmax);
+
+        // ROS_INFO("y min : %d", bounding_info.box_ymin);
+        // ROS_INFO("y max : %d", bounding_info.box_ymax);
     
         cv_bridge::CvImagePtr cv_ptr;
         try
@@ -114,6 +112,10 @@ void cm_detect::realcallback(const detection_msgs::BoundingBoxesConstPtr& bbox, 
 
         cv::Mat& depth_mat = cv_ptr->image;
         // std::cout << "Size : " << depth_mat.size() << std::endl;
+        // ROS_WARN_STREAM("zzz");
+
+        double avr_v = (bounding_info.box_ymin + bounding_info.box_ymax)/2;
+        double avr_u = (bounding_info.box_xmin + bounding_info.box_xmax)/2;
 
         // L515 we should fix below code
         int xmax_s = static_cast<int>(0.5 * bounding_info.box_xmax);
@@ -135,8 +137,9 @@ void cm_detect::realcallback(const detection_msgs::BoundingBoxesConstPtr& bbox, 
         cv::Rect rect(xmin_s, ymin_s, xmax_s-xmin_s, ymax_s-ymin_s);
         cv::rectangle(depth8_3c, rect, cv::Scalar(0,0,255), 2);
 
-        // cv::imshow("depth8_3c", depth8_3c);
-        // cv::waitKey(1);
+        cv::imshow("depth8_3c", depth8_3c);
+        cv::waitKey(1);
+
 
         for(int u = xmin_s; u < xmax_s; u++)
         {
@@ -144,21 +147,21 @@ void cm_detect::realcallback(const detection_msgs::BoundingBoxesConstPtr& bbox, 
             {
                 // cout << "(u, v) = " << "(" << u << ", " << v << ")" << endl;
                 double z = depth_mat.at<unsigned short>(v ,u) * 0.001; // unit : [m]
+                // float z = depth_mat.at<unsigned short>(v ,u) * 0.001;
 
                 if (z!=0) 
                 {
+                    // std::cout << "depth_unsigned_short : " << z << "m"<< std::endl;
+
                     double x = (u - c_x) * z / f_x;
                     double y = (v - c_y) * z / f_y;
-                    pt.x = x;
-                    pt.y = y;
-                    pt.z = z;
 
-                    cloud.push_back(pt);
-                    pcl::toROSMsg(cloud, cloud_out);
-                    cloud_out.header.frame_id = "map";
-                    cloud_out.header.stamp = ros::Time::now();
+                    Point_xyz.x = x;
+                    Point_xyz.y = y;
+                    Point_xyz.z = z;
 
-                    cloud_pub.publish(cloud_out);
+                    Point_pub.publish(Point_xyz);
+                    // cout << "x : " << x << " y : " << y << endl;
                 }
             }
         }
@@ -171,18 +174,23 @@ void cm_detect::realcallback(const detection_msgs::BoundingBoxesConstPtr& bbox, 
     }
 }
 
+
 int main(int argc, char **argv) 
 {
+    // Main node
     ros::init(argc,argv,"detection_node");
     ros::NodeHandle nh("~");
     
     cm_detect data_sub(&nh);   
 
+    // while loop
     ros::Rate loop_rate(1); //Hz
     while(ros::ok())
     {
         ros::spinOnce();
+
         loop_rate.sleep();
     }
+
     return 0;
 }

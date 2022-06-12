@@ -10,6 +10,7 @@ find_package(catkin REQUIRED
     roscpp
     message_filters
     image_transport
+    pcl_ros
     cv_bridge
     message_generation)
 
@@ -28,8 +29,13 @@ find_package(catkin REQUIRED
 
 catkin_package()
 
-include_directories(include ${catkin_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS})
+include_directories(include ${catkin_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS} ${PCL_INCLUDE_DIRS})
 add_executable(detection_node src/cm_detect.cpp)
-target_link_libraries(detection_node ${catkin_LIBRARIES} ${OpenCV_INCLUDE_DIRS})
+target_link_libraries(detection_node ${catkin_LIBRARIES} ${OpenCV_INCLUDE_DIRS} ${PCL_LIBRARIES} pcl_visualization)
+
+include_directories(include ${catkin_INCLUDE_DIRS} ${PCL_INCLUDE_DIRS})
+add_executable(Clustering_node src/cm_clustering.cpp)
+target_link_libraries(Clustering_node ${catkin_LIBRARIES} ${PCL_LIBRARIES} pcl_visualization)
+add_definitions(${PCL_DEFINITIONS})
 
 
