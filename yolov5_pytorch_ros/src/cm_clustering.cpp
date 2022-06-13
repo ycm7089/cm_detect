@@ -58,25 +58,25 @@ void cm_clustering::segmentation()
   pass.filter (*indices);
 
   pcl::RegionGrowing<pcl::PointXYZ, pcl::Normal> reg;
-  // reg.setMinClusterSize (100);
-  // reg.setMaxClusterSize (1000000);
-  // reg.setSearchMethod (tree);
-  // reg.setNumberOfNeighbours (30);
-  // reg.setInputCloud (cloud);
-  // // reg.setIndices (indices);
-  // reg.setInputNormals (normals);
-  // reg.setSmoothnessThreshold (4.0 / 180.0 * M_PI); //색 골고루 나오게 하려면 1.0 에서 증가 시키자~!!
-  // reg.setCurvatureThreshold (1.0);
-
-  reg.setMinClusterSize (50);
+  reg.setMinClusterSize (500);
   reg.setMaxClusterSize (1000000);
   reg.setSearchMethod (tree);
   reg.setNumberOfNeighbours (30);
   reg.setInputCloud (cloud);
-  //reg.setIndices (indices);
+  // reg.setIndices (indices);
   reg.setInputNormals (normals);
-  reg.setSmoothnessThreshold (3.0 / 180.0 * M_PI);
+  reg.setSmoothnessThreshold (3.0 / 180.0 * M_PI); //색 골고루 나오게 하려면 1.0 에서 증가 시키자~!!
   reg.setCurvatureThreshold (1.0);
+
+  // reg.setMinClusterSize (50);
+  // reg.setMaxClusterSize (1000000);
+  // reg.setSearchMethod (tree);
+  // reg.setNumberOfNeighbours (30);
+  // reg.setInputCloud (cloud);
+  // //reg.setIndices (indices);
+  // reg.setInputNormals (normals);
+  // reg.setSmoothnessThreshold (3.0 / 180.0 * M_PI);
+  // reg.setCurvatureThreshold (1.0);
 
   std::vector <pcl::PointIndices> clusters;
   reg.extract (clusters);

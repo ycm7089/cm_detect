@@ -61,7 +61,7 @@ public:
         depth_sub.subscribe(*nh, "/camera/depth/image_rect_raw", 100);
 
         sync.registerCallback(boost::bind(&cm_detect::realcallback, this,_1, _2));
-       
+
         cloud_pub = nh->advertise<sensor_msgs::PointCloud2>("PointXYZ",1);
     }
 public:
@@ -125,8 +125,8 @@ void cm_detect::realcallback(const detection_msgs::BoundingBoxesConstPtr& bbox, 
         cv::Rect rect(xmin_s, ymin_s, xmax_s-xmin_s, ymax_s-ymin_s);
         cv::rectangle(depth8_3c, rect, cv::Scalar(0,0,255), 2);
 
-        // cv::imshow("depth8_3c", depth8_3c);
-        // cv::waitKey(1);
+        cv::imshow("depth8_3c", depth8_3c);
+        cv::waitKey(1);
 
         for(int u = xmin_s; u < xmax_s; u++)
         {
@@ -134,7 +134,7 @@ void cm_detect::realcallback(const detection_msgs::BoundingBoxesConstPtr& bbox, 
             {
                 double z = depth_mat.at<unsigned short>(v ,u) * 0.001; // unit : [m]
 
-                if (z!=0 && bounding_info.box_class == "person") 
+                if (z!=0) 
                 {
                     double x = (u - c_x) * z / f_x;
                     double y = (v - c_y) * z / f_y;
@@ -148,6 +148,8 @@ void cm_detect::realcallback(const detection_msgs::BoundingBoxesConstPtr& bbox, 
                     cloud_out.header.stamp = ros::Time::now();
 
                     cloud_pub.publish(cloud_out);
+
+                    // cloud.clear();
                 }
             }
         }
