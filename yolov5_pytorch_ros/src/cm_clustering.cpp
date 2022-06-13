@@ -44,29 +44,41 @@ void cm_clustering::segmentation()
 {
   ros::Time ros_time1 = ros::Time::now();
   pcl::search::Search<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ>);
+  // cloud point 의 normal_estimator(법선을 추정, 클라우드 포인트의 수직인 직선? )하여 normals 변수에 저장한다.
   pcl::PointCloud <pcl::Normal>::Ptr normals (new pcl::PointCloud <pcl::Normal>);
   pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> normal_estimator;
   normal_estimator.setSearchMethod (tree);
   normal_estimator.setInputCloud (cloud);
+  //setKSearch : target point cloud 안에서 고려할 가장 가까운 점들의 수
   normal_estimator.setKSearch (50);
   normal_estimator.compute (*normals);
 
+  //그분된 Point의 index 저장할 변수 설정
   pcl::IndicesPtr indices (new std::vector <int>);
   pcl::PassThrough<pcl::PointXYZ> pass;
   pass.setInputCloud (cloud);
-  pass.setFilterFieldName ("z");
-  pass.setFilterLimits (0.0, 1.0);
+  //Z 축을 기준으로 0~1.0 meter 외의 point 값을 필터링 하기위해 pcl::PassThrough 함수 사용 
+  pass.setFilterFieldName ("y"); // z축으로 filtering
+  pass.setFilterLimits (-500.0, 500.0); // 0.0 ~ 1.0 부분 추출 ??
+  // pass.setFilterLimitsNegative(true); //0.
   pass.filter (*indices);
 
   pcl::RegionGrowing<pcl::PointXYZ, pcl::Normal> reg;
   reg.setMinClusterSize (200);
   reg.setMaxClusterSize (1000000);
+
+  //KNN(레이블(정답)이 없는 예시를 분류하기 위한 알고리즘)을 찾는데 사용될 검색 방법을 설정  
   reg.setSearchMethod (tree);
-  reg.setNumberOfNeighbours (30);
+  
+  reg.setNumberOfNeighbours (40);
   reg.setInputCloud (cloud);
   // reg.setIndices (indices);
   reg.setInputNormals (normals);
+
+  //각 point를 test 하기위한 smoothness thresold 를 설정 
   reg.setSmoothnessThreshold (3.0 / 180.0 * M_PI); //색 골고루 나오게 하려면 1.0 에서 증가 시키자~!!
+  
+  //각 point를 test 하는데 사용되는 곡률의 임계값
   reg.setCurvatureThreshold (1.0);
 
   // reg.setMinClusterSize (50);
@@ -79,10 +91,11 @@ void cm_clustering::segmentation()
   // reg.setSmoothnessThreshold (3.0 / 180.0 * M_PI);
   // reg.setCurvatureThreshold (1.0);
 
+  //분류된 각 point들의 index가 저장될 clusters 의 백터 변수 설정하고 뽑아냄.  
   std::vector <pcl::PointIndices> clusters;
-  reg.extract (clusters);
+  reg.extract (clusters); //군집화 적용
 
-  std::cout << "Number of clusters is equal to " << clusters.size () << std::endl;
+  std::cout << "Number of clusters is equal to " << clusters.size () << std::endl; //몇개의 segment로 분할 되었는지 로그로 확인
   std::cout << "First cluster has " << clusters[0].indices.size () << " points." << std::endl;
   std::cout << "These are the indices of the points of the initial" <<
   std::endl << "cloud that belong to the first cluster:" << std::endl;
@@ -100,6 +113,9 @@ void cm_clustering::segmentation()
 
   ROS_INFO("clustering time1 is %d.%d", ros_time2.sec,ros_time2.nsec);
   ROS_INFO("clustering time2 is %d.%d", ros_time1.sec,ros_time1.nsec);
+
+  // ros::Duration(1.0).sleep();
+
 }
 
 int main(int argc, char** argv)

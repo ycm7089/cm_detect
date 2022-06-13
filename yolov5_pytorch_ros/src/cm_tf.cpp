@@ -75,7 +75,7 @@ void cm_move_base::tf_publisher()
 }
 int main(int argc, char** argv)
 {
-  ros::init(argc, argv, "simple_navigation_goals");
+  ros::init(argc, argv, "tf_node");
   ros::NodeHandle nh("~");
 
   cm_move_base cm_move_bases(&nh);  

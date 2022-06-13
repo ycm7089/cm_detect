@@ -133,8 +133,8 @@ void cm_detect::realcallback(const detection_msgs::BoundingBoxesConstPtr& bbox, 
         cv::Rect rect(xmin_s, ymin_s, xmax_s-xmin_s, ymax_s-ymin_s);
         cv::rectangle(depth8_3c, rect, cv::Scalar(0,0,255), 2);
 
-        cv::imshow("depth8_3c", depth8_3c);
-        cv::waitKey(1);
+        // cv::imshow("depth8_3c", depth8_3c);
+        // cv::waitKey(1);
 
         for(int u = xmin_s; u < xmax_s; u++)
         {
