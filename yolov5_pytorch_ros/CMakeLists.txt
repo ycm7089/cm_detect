@@ -12,6 +12,10 @@ find_package(catkin REQUIRED
     image_transport
     pcl_ros
     cv_bridge
+    actionlib
+    move_base_msgs
+    tf
+    tf_conversions
     message_generation)
 
 #add_message_files(
@@ -37,5 +41,9 @@ include_directories(include ${catkin_INCLUDE_DIRS} ${PCL_INCLUDE_DIRS})
 add_executable(Clustering_node src/cm_clustering.cpp)
 target_link_libraries(Clustering_node ${catkin_LIBRARIES} ${PCL_LIBRARIES} pcl_visualization)
 add_definitions(${PCL_DEFINITIONS})
+
+include_directories(include ${catkin_INCLUDE_DIRS} )
+add_executable(simple_navigation_goals src/simple_navigation_goals.cpp)
+target_link_libraries(simple_navigation_goals ${catkin_LIBRARIES})
 
 

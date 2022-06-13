@@ -15,11 +15,20 @@
   <build_depend>detection_msgs</build_depend>
   <build_depend>message_filters</build_depend>
   <build_depend>pcl_ros</build_depend>
+  <build_depend>tf</build_depend>
+  <build_depend>tf_conversions</build_depend>
+  <build_depend>actionlib</build_depend>
+  <build_depend>move_base_msgs</build_depend>
 
   <build_export_depend>roscpp</build_export_depend>
   <build_export_depend>detection_msgs</build_export_depend>
   <build_export_depend>pcl_ros</build_export_depend>
+  <build_export_depend>tf</build_export_depend>
+  <build_export_depend>tf_conversions</build_export_depend>
+  <build_export_depend>actionlib</build_export_depend>
+  <build_export_depend>move_base_msgs</build_export_depend>
 
+  <exec_depend>actionlib</exec_depend>
   <exec_depend>message_filters</exec_depend>
   <exec_depend>rospy</exec_depend>
   <exec_depend>roscpp</exec_depend>
@@ -30,6 +39,9 @@
   <exec_depend>message_runtime</exec_depend>
   <exec_depend>detection_msgs</exec_depend>
   <exec_depend>pcl_ros</exec_depend>
+  <exec_depend>move_base_msgs</exec_depend>
+  <exec_depend>tf</exec_depend>
+  <exec_depend>tf_conversions</exec_depend>
 
 
 </package>

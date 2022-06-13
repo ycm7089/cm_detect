@@ -26,7 +26,7 @@ public:
     {
       cloud.reset(new pcl::PointCloud<pcl::PointXYZ>());
       seg_pub = nh->advertise<sensor_msgs::PointCloud2>("PointXYZRGB",1);
-      point_sub = nh->subscribe("/detection_node/PointXYZ",1, &cm_clustering::detection_callback,this); 
+      point_sub = nh->subscribe("/detection_node/PointCloud",1, &cm_clustering::detection_callback,this); 
     }
     void detection_callback(const sensor_msgs::PointCloud2::Ptr&msg);
     void segmentation();

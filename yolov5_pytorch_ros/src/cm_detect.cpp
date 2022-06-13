@@ -5,6 +5,7 @@
 #include <sensor_msgs/PointCloud.h>
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/image_encodings.h>
+#include <geometry_msgs/Pose.h>
 
 #include <message_filters/subscriber.h>
 #include <message_filters/synchronizer.h>
@@ -49,10 +50,13 @@ public:
     message_filters::Subscriber<sensor_msgs::Image> depth_sub;
     message_filters::Synchronizer<MySyncPolicy> sync;
     ros::Publisher cloud_pub;
+    ros::Publisher Pose_pub;
+
 
     pcl::PointCloud<pcl::PointXYZ> cloud;
     sensor_msgs::PointCloud2 cloud_out;
     pcl::PointXYZ pt;
+    geometry_msgs::Pose Pose_xyz;
 
     cm_detect(ros::NodeHandle *nh)
         : sync(MySyncPolicy(100), bbox_sub, depth_sub)
@@ -64,7 +68,9 @@ public:
         // pt.z = {};
         sync.registerCallback(boost::bind(&cm_detect::realcallback, this,_1, _2));
 
-        cloud_pub = nh->advertise<sensor_msgs::PointCloud2>("PointXYZ",1);
+        cloud_pub = nh->advertise<sensor_msgs::PointCloud2>("PointCloud",1);
+        Pose_pub = nh->advertise<geometry_msgs::Pose>("PoseXYZ",1);
+
     }
 public:
     //L515
@@ -144,17 +150,23 @@ void cm_detect::realcallback(const detection_msgs::BoundingBoxesConstPtr& bbox, 
                     pt.y = y;
                     pt.z = z;
 
+                    Pose_xyz.position.x = ((xmax_s + xmin_s) / 2 - c_x) * z / f_x;
+                    Pose_xyz.position.y = ((ymax_s + ymin_s) / 2 - c_y) * z / f_y;  
+                    Pose_xyz.position.z = z;
+
                     cloud.push_back(pt);
                     pcl::toROSMsg(cloud, cloud_out);
                     cloud_out.header.frame_id = "map";
                     cloud_out.header.stamp = ros::Time::now();
-
+                    
+                    Pose_pub.publish(Pose_xyz);
                     cloud_pub.publish(cloud_out);
-
                 }
             }
         }
 
+         
+       
     }
     // cloud.clear();
 
@@ -167,11 +179,11 @@ int main(int argc, char **argv)
     
     cm_detect data_sub(&nh);   
 
-    ros::Rate loop_rate(30); //Hz
+    // ros::Rate loop_rate(30); //Hz
     while(ros::ok())
     {
         ros::spinOnce();
-        loop_rate.sleep();
+        // loop_rate.sleep();
     }
     return 0;
 }
