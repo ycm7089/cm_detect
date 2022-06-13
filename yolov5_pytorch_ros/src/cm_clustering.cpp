@@ -42,6 +42,7 @@ void cm_clustering::detection_callback(const sensor_msgs::PointCloud2::Ptr&msg)
 
 void cm_clustering::segmentation()
 {
+  ros::Time ros_time1 = ros::Time::now();
   pcl::search::Search<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ>);
   pcl::PointCloud <pcl::Normal>::Ptr normals (new pcl::PointCloud <pcl::Normal>);
   pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> normal_estimator;
@@ -58,7 +59,7 @@ void cm_clustering::segmentation()
   pass.filter (*indices);
 
   pcl::RegionGrowing<pcl::PointXYZ, pcl::Normal> reg;
-  reg.setMinClusterSize (500);
+  reg.setMinClusterSize (200);
   reg.setMaxClusterSize (1000000);
   reg.setSearchMethod (tree);
   reg.setNumberOfNeighbours (30);
@@ -94,6 +95,11 @@ void cm_clustering::segmentation()
   cloud_out.header.stamp = ros::Time::now();
   ROS_WARN_STREAM("map!");
   seg_pub.publish(cloud_out);
+
+  ros::Time ros_time2 = ros::Time::now();
+
+  ROS_INFO("clustering time1 is %d.%d", ros_time2.sec,ros_time2.nsec);
+  ROS_INFO("clustering time2 is %d.%d", ros_time1.sec,ros_time1.nsec);
 }
 
 int main(int argc, char** argv)
@@ -101,13 +107,13 @@ int main(int argc, char** argv)
   ros::init(argc, argv, "Clustering_node");
   
   ros::NodeHandle nh("~");
-  ros::Rate loop_rate(10); //Hz
+  // ros::Rate loop_rate(30); //Hz
 
   cm_clustering clustering(&nh);
   while (ros::ok())
   {
     ros::spinOnce();
-    loop_rate.sleep();
+    // loop_rate.sleep();
   }  
   return (0);
 }

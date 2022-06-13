@@ -59,7 +59,9 @@ public:
     {
         bbox_sub.subscribe(*nh, "/yolov5/detections", 100);
         depth_sub.subscribe(*nh, "/camera/depth/image_rect_raw", 100);
-
+        // pt.x = {};
+        // pt.y = {};
+        // pt.z = {};
         sync.registerCallback(boost::bind(&cm_detect::realcallback, this,_1, _2));
 
         cloud_pub = nh->advertise<sensor_msgs::PointCloud2>("PointXYZ",1);
@@ -149,11 +151,13 @@ void cm_detect::realcallback(const detection_msgs::BoundingBoxesConstPtr& bbox, 
 
                     cloud_pub.publish(cloud_out);
 
-                    // cloud.clear();
                 }
             }
         }
+
     }
+    // cloud.clear();
+
 }
 
 int main(int argc, char **argv) 
@@ -163,7 +167,7 @@ int main(int argc, char **argv)
     
     cm_detect data_sub(&nh);   
 
-    ros::Rate loop_rate(10); //Hz
+    ros::Rate loop_rate(30); //Hz
     while(ros::ok())
     {
         ros::spinOnce();
