@@ -9,6 +9,7 @@
 #include <pcl/visualization/cloud_viewer.h>
 #include <pcl/filters/passthrough.h>
 #include <pcl/segmentation/region_growing.h>
+#include <pcl/segmentation/extract_clusters.h>
 #include <typeinfo>
 #include <sensor_msgs/PointCloud2.h>
 
@@ -24,18 +25,30 @@ public:
 
     pcl::PointCloud<pcl::PointXYZ> cloud_dst;
 
-    
+    pcl::RegionGrowing<pcl::PointXYZ, pcl::Normal> reg;
+    pcl::EuclideanClusterExtraction<pcl::PointXYZ> ec;
+
+    pcl::search::Search<pcl::PointXYZ>::Ptr tree;
+
     cm_clustering(ros::NodeHandle *nh)
     {
       cloud.reset(new pcl::PointCloud<pcl::PointXYZ>());
+      tree.reset(new pcl::search::KdTree<pcl::PointXYZ>());
       seg_pub = nh->advertise<sensor_msgs::PointCloud2>("PointXYZRGB",1);
       point_sub = nh->subscribe("/detection_node/PointCloud",1, &cm_clustering::detection_callback,this); 
     }
-    void detection_callback(const sensor_msgs::PointCloud2::Ptr&msg);
+    void detection_callback(const sensor_msgs::PointCloud2::Ptr& msg);
     void segmentation();
+    void region_growing_segmentation(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud,
+                                     pcl::PointCloud <pcl::Normal>::Ptr normals,
+                                     std::vector <pcl::PointIndices>& indices);
+
+    void euclidean_segmentation(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud,
+                                pcl::PointCloud <pcl::Normal>::Ptr normals,
+                                std::vector <pcl::PointIndices>& indices);
 };
 
-void cm_clustering::detection_callback(const sensor_msgs::PointCloud2::Ptr&msg)
+void cm_clustering::detection_callback(const sensor_msgs::PointCloud2::Ptr& msg)
 {
   ROS_WARN_STREAM("Yes");
   pcl::fromROSMsg(*msg,*cloud);
@@ -45,7 +58,7 @@ void cm_clustering::detection_callback(const sensor_msgs::PointCloud2::Ptr&msg)
 
 void cm_clustering::segmentation()
 {
-  pcl::search::Search<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ>);
+  
   // cloud point 의 normal_estimator(법선을 추정, 클라우드 포인트의 수직인 직선? )하여 normals 변수에 저장한다.
 
   //그분된 Point의 index 저장할 변수 설정
@@ -74,7 +87,54 @@ void cm_clustering::segmentation()
   normal_estimator.setKSearch (10);
   normal_estimator.compute (*normals);
 
-  pcl::RegionGrowing<pcl::PointXYZ, pcl::Normal> reg;
+  std::vector <pcl::PointIndices> cluster_indices;
+
+  // region_growing_segmentation(filtered_pc, normals, cluster_indices);
+  euclidean_segmentation(filtered_pc, normals, cluster_indices);
+
+  // ROS_WARN_STREAM(clusters.size());
+  if(cluster_indices.size() > 0)
+  {
+    int max_num_idx=-1;
+    int max_num = -1;
+    for(int i=0; i < cluster_indices.size(); ++i)
+    {
+      if(cluster_indices[i].size() > max_num)
+      {
+        max_num = cluster_indices[i].size();
+        max_num_idx = i;
+      }
+    }
+
+    std::cout << "Number of clusters is equal to " << cluster_indices.size () << std::endl; //몇개의 segment로 분할 되었는지 로그로 확인
+    std::cout << "First cluster has " << cluster_indices[max_num_idx].indices.size () << " points." << std::endl;
+    std::cout << "These are the indices of the points of the initial" <<
+    std::endl << "cloud that belong to the first cluster:" << std::endl;
+
+    //https://adioshun.gitbooks.io/3d_people_detection/content/ebook/part02/part02-chapter01/part02-chapter01-euclidean.html
+    // 큰놈만 뽑아서 publish
+    // sensor_msgs::PointCloud2 cloud_out;
+    // cloud_cluster->points.push_back (cloud->points[*pit]); 
+    // cloud_cluster->width = cloud_cluster->points.size ();
+    // cloud_cluster->height = 1;
+    // cloud_cluster->is_dense = true;
+    // pcl::PointCloud<pcl::PointXYZRGB>::Ptr colored_cloud = ec.getColoredCloud ();
+    pcl::toROSMsg(*colored_cloud, cloud_out); //pcl -> pointcloud
+    // pcl::toROSMsg(*filtered_pc, cloud_out); //pcl -> pointcloud
+
+    cloud_out.header.frame_id = "map";
+    cloud_out.header.stamp = ros::Time::now();
+    seg_pub.publish(cloud_out);
+
+  }
+  // ros::Duration(1.0).sleep();
+}
+
+void cm_clustering::region_growing_segmentation(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud,
+                                                pcl::PointCloud <pcl::Normal>::Ptr normals,
+                                                std::vector <pcl::PointIndices>& indices)
+{
+  
   reg.setMinClusterSize (50);
   reg.setMaxClusterSize (1000000);
 
@@ -83,7 +143,7 @@ void cm_clustering::segmentation()
   
   reg.setNumberOfNeighbours (30);
   // reg.setInputCloud (cloud);
-  reg.setInputCloud (filtered_pc);
+  reg.setInputCloud (cloud);
 
   // reg.setIndices (indices);
   reg.setInputNormals (normals);
@@ -95,28 +155,21 @@ void cm_clustering::segmentation()
   reg.setCurvatureThreshold (1.0);
 
   //분류된 각 point들의 index가 저장될 clusters 의 백터 변수 설정하고 뽑아냄.  
-  std::vector <pcl::PointIndices> clusters;
-  reg.extract (clusters); //군집화 적용
-  // ROS_WARN_STREAM(clusters.size());
-  if(clusters.size() > 0)
-  {
-    std::cout << "Number of clusters is equal to " << clusters.size () << std::endl; //몇개의 segment로 분할 되었는지 로그로 확인
-    std::cout << "First cluster has " << clusters[0].indices.size () << " points." << std::endl;
-    std::cout << "These are the indices of the points of the initial" <<
-    std::endl << "cloud that belong to the first cluster:" << std::endl;
+  
+  reg.extract (indices); //군집화 적용
+}
 
-    sensor_msgs::PointCloud2 cloud_out;
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr colored_cloud = reg.getColoredCloud ();
-    pcl::toROSMsg(*colored_cloud, cloud_out); //pcl -> pointcloud
-    // pcl::toROSMsg(*filtered_pc, cloud_out); //pcl -> pointcloud
-
-    cloud_out.header.frame_id = "map";
-    cloud_out.header.stamp = ros::Time::now();
-    seg_pub.publish(cloud_out);
-
-  }
-
-  // ros::Duration(1.0).sleep();
+void cm_clustering::euclidean_segmentation(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud,
+                                           pcl::PointCloud <pcl::Normal>::Ptr normals,
+                                           std::vector <pcl::PointIndices>& indices)
+{
+  
+  ec.setInputCloud (cloud);       // 입력   
+  ec.setClusterTolerance (0.02);  // 2cm  
+  ec.setMinClusterSize (50);     // 최소 포인트 수 
+  ec.setMaxClusterSize (2500000);   // 최대 포인트 수
+  ec.setSearchMethod (tree);      // 위에서 정의한 탐색 방법 지정 
+  ec.extract (indices);   // 군집화 적용
 }
 
 int main(int argc, char** argv)
