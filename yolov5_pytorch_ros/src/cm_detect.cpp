@@ -45,13 +45,11 @@ class cm_detect
 {
 public:
     BoundingBox_Info bounding_info;
-    
     message_filters::Subscriber<detection_msgs::BoundingBoxes> bbox_sub;
     message_filters::Subscriber<sensor_msgs::Image> depth_sub;
     message_filters::Synchronizer<MySyncPolicy> sync;
     ros::Publisher cloud_pub;
     ros::Publisher Pose_pub;
-
 
     pcl::PointCloud<pcl::PointXYZ> cloud;
     sensor_msgs::PointCloud2 cloud_out;
@@ -63,14 +61,11 @@ public:
     {
         bbox_sub.subscribe(*nh, "/yolov5/detections", 100);
         depth_sub.subscribe(*nh, "/camera/depth/image_rect_raw", 100);
-        // pt.x = {};
-        // pt.y = {};
-        // pt.z = {};
+
         sync.registerCallback(boost::bind(&cm_detect::realcallback, this,_1, _2));
 
         cloud_pub = nh->advertise<sensor_msgs::PointCloud2>("PointCloud",1);
         Pose_pub = nh->advertise<geometry_msgs::Pose>("PoseXYZ",1);
-
     }
 public:
     //L515
@@ -118,7 +113,8 @@ void cm_detect::realcallback(const detection_msgs::BoundingBoxesConstPtr& bbox, 
         int xmin_s = static_cast<int>(0.5 * bounding_info.box_xmin);
         int ymax_s = static_cast<int>(2.0 * bounding_info.box_ymax / 3.0);
         int ymin_s = static_cast<int>(2.0 * bounding_info.box_ymin / 3.0);
-
+        
+       
         // int xmax_s = static_cast<int>( 848 * bounding_info.box_xmax / 640);        
         // int xmin_s = static_cast<int>( 848 * bounding_info.box_xmin / 640);
         // int ymax_s = bounding_info.box_ymax;
@@ -133,8 +129,8 @@ void cm_detect::realcallback(const detection_msgs::BoundingBoxesConstPtr& bbox, 
         cv::Rect rect(xmin_s, ymin_s, xmax_s-xmin_s, ymax_s-ymin_s);
         cv::rectangle(depth8_3c, rect, cv::Scalar(0,0,255), 2);
 
-        // cv::imshow("depth8_3c", depth8_3c);
-        // cv::waitKey(1);
+        cv::imshow("depth8_3c", depth8_3c);
+        cv::waitKey(1);
 
         for(int u = xmin_s; u < xmax_s; u++)
         {
@@ -168,7 +164,7 @@ void cm_detect::realcallback(const detection_msgs::BoundingBoxesConstPtr& bbox, 
          
        
     }
-    // cloud.clear();
+    cloud.clear();
 
 }
 
@@ -179,11 +175,11 @@ int main(int argc, char **argv)
     
     cm_detect data_sub(&nh);   
 
-    // ros::Rate loop_rate(30); //Hz
+    ros::Rate loop_rate(30); //Hz
     while(ros::ok())
     {
         ros::spinOnce();
-        // loop_rate.sleep();
+        loop_rate.sleep();
     }
     return 0;
 }
