@@ -38,10 +38,7 @@ public:
 void cm_clustering::detection_callback(const sensor_msgs::PointCloud2::Ptr&msg)
 {
   ROS_WARN_STREAM("Yes");
-  // pcl::fromROSMsg(*msg, cloud_dst);
   pcl::fromROSMsg(*msg,*cloud);
-
-  // *cloud = cloud_dst;
 
   segmentation();
 }
@@ -50,13 +47,6 @@ void cm_clustering::segmentation()
 {
   pcl::search::Search<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ>);
   // cloud point 의 normal_estimator(법선을 추정, 클라우드 포인트의 수직인 직선? )하여 normals 변수에 저장한다.
-  pcl::PointCloud <pcl::Normal>::Ptr normals (new pcl::PointCloud <pcl::Normal>);
-  pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> normal_estimator;
-  normal_estimator.setSearchMethod (tree);
-  normal_estimator.setInputCloud (cloud);
-  //setKSearch : target point cloud 안에서 고려할 가장 가까운 점들의 수
-  normal_estimator.setKSearch (50);
-  normal_estimator.compute (*normals);
 
   //그분된 Point의 index 저장할 변수 설정
   pcl::PointCloud<pcl::PointXYZ>::Ptr filtered_pc;
@@ -67,11 +57,22 @@ void cm_clustering::segmentation()
   pass.setInputCloud (cloud);
   //Z 축을 기준으로 0~1.0 meter 외의 point 값을 필터링 하기위해 pcl::PassThrough 함수 사용 
   pass.setFilterFieldName ("y"); // z축으로 filtering
-  pass.setFilterLimits (-0.5, 2.0); // 0.0 ~ 1.0 부분 추출 ??
+  pass.setFilterLimits (0.4, 100.0); // 0.0 ~ 1.0 부분 추출 ??
   pass.setFilterLimitsNegative(true); //0.
-  pass.filter (*indices);
-  // pass.filter (*filtered_pc);
+  // pass.filter (*indices);
+  pass.filter (*filtered_pc);
   // 바닥을 날려야하는데 못날리는중;
+  ///////////////////////////////////////////////////////////////////
+  // ROS_WARN_STREAM("ss");
+  pcl::PointCloud <pcl::Normal>::Ptr normals (new pcl::PointCloud <pcl::Normal>);
+  pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> normal_estimator;
+  normal_estimator.setSearchMethod (tree);
+  // ROS_WARN_STREAM("ss222");
+  normal_estimator.setInputCloud (filtered_pc);
+  // ROS_WARN_STREAM("ss333");
+  //setKSearch : target point cloud 안에서 고려할 가장 가까운 점들의 수
+  normal_estimator.setKSearch (10);
+  normal_estimator.compute (*normals);
 
   pcl::RegionGrowing<pcl::PointXYZ, pcl::Normal> reg;
   reg.setMinClusterSize (50);
@@ -81,8 +82,8 @@ void cm_clustering::segmentation()
   reg.setSearchMethod (tree);
   
   reg.setNumberOfNeighbours (30);
-  reg.setInputCloud (cloud);
-  // reg.setInputCloud (filtered_pc);
+  // reg.setInputCloud (cloud);
+  reg.setInputCloud (filtered_pc);
 
   // reg.setIndices (indices);
   reg.setInputNormals (normals);
@@ -96,22 +97,25 @@ void cm_clustering::segmentation()
   //분류된 각 point들의 index가 저장될 clusters 의 백터 변수 설정하고 뽑아냄.  
   std::vector <pcl::PointIndices> clusters;
   reg.extract (clusters); //군집화 적용
+  // ROS_WARN_STREAM(clusters.size());
   if(clusters.size() > 0)
   {
     std::cout << "Number of clusters is equal to " << clusters.size () << std::endl; //몇개의 segment로 분할 되었는지 로그로 확인
     std::cout << "First cluster has " << clusters[0].indices.size () << " points." << std::endl;
     std::cout << "These are the indices of the points of the initial" <<
     std::endl << "cloud that belong to the first cluster:" << std::endl;
+
     sensor_msgs::PointCloud2 cloud_out;
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr colored_cloud = reg.getColoredCloud ();
-
     pcl::toROSMsg(*colored_cloud, cloud_out); //pcl -> pointcloud
     // pcl::toROSMsg(*filtered_pc, cloud_out); //pcl -> pointcloud
-  
+
     cloud_out.header.frame_id = "map";
     cloud_out.header.stamp = ros::Time::now();
     seg_pub.publish(cloud_out);
+
   }
+
   // ros::Duration(1.0).sleep();
 }
 

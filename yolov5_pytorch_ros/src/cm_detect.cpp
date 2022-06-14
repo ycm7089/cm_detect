@@ -109,10 +109,10 @@ void cm_detect::realcallback(const detection_msgs::BoundingBoxesConstPtr& bbox, 
         // std::cout << "Size : " << depth_mat.size() << std::endl;
 
         // L515 we should fix below code
-        int xmax_s = static_cast<int>(0.5 * bounding_info.box_xmax);
-        int xmin_s = static_cast<int>(0.5 * bounding_info.box_xmin);
-        int ymax_s = static_cast<int>(2.0 * bounding_info.box_ymax / 3.0);
-        int ymin_s = static_cast<int>(2.0 * bounding_info.box_ymin / 3.0);
+        int xmax_s = static_cast<int>(0.5 * bounding_info.box_xmax + 35);
+        int xmin_s = static_cast<int>(0.5 * bounding_info.box_xmin + 35);
+        int ymax_s = static_cast<int>(2.0 * bounding_info.box_ymax / 3.0 - 35);
+        int ymin_s = static_cast<int>(2.0 * bounding_info.box_ymin / 3.0 + 35);
         
        
         // int xmax_s = static_cast<int>( 848 * bounding_info.box_xmax / 640);        
