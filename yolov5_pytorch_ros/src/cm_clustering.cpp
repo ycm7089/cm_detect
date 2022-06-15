@@ -20,10 +20,8 @@ class cm_clustering
 public:
     ros::Subscriber point_sub;
     ros::Publisher seg_pub;
-    sensor_msgs::PointCloud2 detection_point;
     
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud;
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr euclidean_cloud;
 
     pcl::RegionGrowing<pcl::PointXYZ, pcl::Normal> reg;
     pcl::EuclideanClusterExtraction<pcl::PointXYZ> ec;
@@ -34,7 +32,6 @@ public:
     {
       cloud.reset(new pcl::PointCloud<pcl::PointXYZ>());
       tree.reset(new pcl::search::KdTree<pcl::PointXYZ>());
-      euclidean_cloud.reset(new pcl::PointCloud<pcl::PointXYZRGB>());
 
       seg_pub = nh->advertise<sensor_msgs::PointCloud2>("PointXYZRGB",1);
       point_sub = nh->subscribe("/detection_node/PointCloud",1, &cm_clustering::detection_callback,this); 
@@ -48,17 +45,12 @@ public:
     void euclidean_segmentation(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud,
                                 pcl::PointCloud <pcl::Normal>::Ptr normals,
                                 std::vector <pcl::PointIndices>& indices);
-
-    void colorize(const pcl::PointCloud<pcl::PointXYZ> &pc,
-                        pcl::PointCloud<pcl::PointXYZRGB> & pc_colored,
-                  const std::vector<int> &color);
 };
 
 void cm_clustering::detection_callback(const sensor_msgs::PointCloud2::Ptr& msg)
 {
   ROS_WARN_STREAM("Yes");
   pcl::fromROSMsg(*msg,*cloud);
-  // pcl::fromROS    pcl::PointCloud<pcl::PointXYZ> cloud_dst;
   segmentation();
 }
 
@@ -84,9 +76,7 @@ void cm_clustering::segmentation()
   pcl::PointCloud <pcl::Normal>::Ptr normals (new pcl::PointCloud <pcl::Normal>);
   pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> normal_estimator;
   normal_estimator.setSearchMethod (tree);
-  // ROS_WARN_STREAM("ss222");
   normal_estimator.setInputCloud (filtered_pc);
-  // ROS_WARN_STREAM("ss333");
   //setKSearch : target point cloud 안에서 고려할 가장 가까운 점들의 수
   normal_estimator.setKSearch (10);
   normal_estimator.compute (*normals);
@@ -117,13 +107,6 @@ void cm_clustering::segmentation()
     sensor_msgs::PointCloud2 cloud_out;
 
     //https://adioshun.gitbooks.io/3d_people_detection/content/ebook/part02/part02-chapter01/part02-chapter01-euclidean.html
-    // 큰놈만 뽑아서 publish
-    // for euclidean color setting?
-
-    // std::cout<< typeid(cloud).name() << std::endl;
-    // colorize(*cloud,*euclidean_cloud,{255,255,255});
-    // std::cout<< typeid(cloud).name() << std::endl;
-
     for (std::vector<pcl::PointIndices>::const_iterator it = cluster_indices.begin (); it != cluster_indices.end (); ++it)
     {
       pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_cluster (new pcl::PointCloud<pcl::PointXYZRGB>);
@@ -151,9 +134,10 @@ void cm_clustering::segmentation()
       
       std::cout << "PointCloud representing the Cluster: " << cloud_cluster->points.size () << " data points." << std::endl;
     }
-    // // pcl::PointCloud<pcl::PointXYZRGB>::Ptr colored_cloud = reg.getColoredCloud ();
     
-    // // pcl::toROSMsg(*colored_cloud, cloud_out); //pcl -> pointcloud
+    //region_growing
+    // pcl::PointCloud<pcl::PointXYZRGB>::Ptr colored_cloud = reg.getColoredCloud (); 
+    // pcl::toROSMsg(*colored_cloud, cloud_out); //pcl -> pointcloud
     
     cloud_out.header.frame_id = "map";
     cloud_out.header.stamp = ros::Time::now();
@@ -203,26 +187,6 @@ void cm_clustering::euclidean_segmentation(pcl::PointCloud<pcl::PointXYZ>::Ptr c
   ec.setMaxClusterSize (2500000);   // 최대 포인트 수
   ec.setSearchMethod (tree);      // 위에서 정의한 탐색 방법 지정 
   ec.extract (indices);   // 군집화 적용
-}
-
-void cm_clustering::colorize(const pcl::PointCloud<pcl::PointXYZ> &pc,
-                    pcl::PointCloud<pcl::PointXYZRGB> & pc_colored,
-                    const std::vector<int> &color)
-{
-  int N = pc.points.size();
-  pc_colored.clear();
-  pcl::PointXYZRGB pt_tmp;
-  for (int i = 0; i< N; i++)
-  {
-    const auto &pt = pc.points[i];
-    pt_tmp.x = pt.x;
-    pt_tmp.y = pt.y;
-    pt_tmp.z = pt.z;
-    pt_tmp.r = color[0];
-    pt_tmp.g = color[1];
-    pt_tmp.b = color[2];
-    pc_colored.points.emplace_back(pt_tmp);
-  }
 }
 
 int main(int argc, char** argv)
