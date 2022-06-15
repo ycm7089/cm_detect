@@ -28,6 +28,8 @@ public:
 
     pcl::search::Search<pcl::PointXYZ>::Ptr tree;
 
+    sensor_msgs::PointCloud2 cloud_out;
+
     cm_clustering(ros::NodeHandle *nh)
     {
       cloud.reset(new pcl::PointCloud<pcl::PointXYZ>());
@@ -89,24 +91,14 @@ void cm_clustering::segmentation()
   // ROS_WARN_STREAM(clusters.size());
   if(cluster_indices.size() > 0)
   {
-    // int max_num_idx=-1;
-    // int max_num = -1;
-    // for(int i=0; i < cluster_indices.size(); ++i)
-    // {
-      // if(cluster_indices[i].size() > max_num)
-      // {
-        // max_num = cluster_indices[i].size();
-        // max_num_idx = i;
-      // }
-    // }
-
     std::cout << "Number of clusters is equal to " << cluster_indices.size () << std::endl; //몇개의 segment로 분할 되었는지 로그로 확인
     std::cout << "First cluster has " << cluster_indices[0].indices.size () << " points." << std::endl;
     std::cout << "These are the indices of the points of the initial" <<
     std::endl << "cloud that belong to the first cluster:" << std::endl;
-    sensor_msgs::PointCloud2 cloud_out;
 
     //https://adioshun.gitbooks.io/3d_people_detection/content/ebook/part02/part02-chapter01/part02-chapter01-euclidean.html
+    
+    // euclidean
     for (std::vector<pcl::PointIndices>::const_iterator it = cluster_indices.begin (); it != cluster_indices.end (); ++it)
     {
       pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_cluster (new pcl::PointCloud<pcl::PointXYZRGB>);
@@ -120,15 +112,14 @@ void cm_clustering::segmentation()
         rgb_point.r = 255.0;
         rgb_point.g = 255.0;
         rgb_point.b = 0.0;
-        rgb_point.a = 0.0;
+        rgb_point.a = 0.5;
         //a :: 알파 채널 값은 완전한 투명 상태인 0.0부터 투명도가 전혀 없는 1.0 사이의 값을 가집니다.
         cloud_cluster->points.push_back (rgb_point); 
         cloud_cluster->width = cloud_cluster->points.size ();
         cloud_cluster->height = 1;
-        cloud_cluster->is_dense = true;
-       
-        
+        cloud_cluster->is_dense = true;        
       }
+
       pcl::toROSMsg(*cloud_cluster, cloud_out); //pcl -> pointcloud
       cloud_out.header.frame_id = "map";
       cloud_out.header.stamp = ros::Time::now();
@@ -137,13 +128,13 @@ void cm_clustering::segmentation()
       std::cout << "PointCloud representing the Cluster: " << cloud_cluster->points.size () << " data points." << std::endl;
     }
     
-    //region_growing
+    // region_growing
     // pcl::PointCloud<pcl::PointXYZRGB>::Ptr colored_cloud = reg.getColoredCloud (); 
     // pcl::toROSMsg(*colored_cloud, cloud_out); //pcl -> pointcloud
     
-    cloud_out.header.frame_id = "map";
-    cloud_out.header.stamp = ros::Time::now();
-    seg_pub.publish(cloud_out);
+    // cloud_out.header.frame_id = "map";
+    // cloud_out.header.stamp = ros::Time::now();
+    // seg_pub.publish(cloud_out);
 
   }
   // ros::Duration(1.0).sleep();
