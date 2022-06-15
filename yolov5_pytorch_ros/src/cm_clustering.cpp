@@ -65,7 +65,6 @@ void cm_clustering::detection_callback(const sensor_msgs::PointCloud2::Ptr& msg)
 void cm_clustering::segmentation()
 {
   
-  // cloud point 의 normal_estimator(법선을 추정, 클라우드 포인트의 수직인 직선? )하여 normals 변수에 저장한다.
 
   //그분된 Point의 index 저장할 변수 설정
   pcl::PointCloud<pcl::PointXYZ>::Ptr filtered_pc;
@@ -80,9 +79,8 @@ void cm_clustering::segmentation()
   pass.setFilterLimitsNegative(true); //0.
   // pass.filter (*indices);
   pass.filter (*filtered_pc);
-  // 바닥을 날려야하는데 못날리는중;
-  ///////////////////////////////////////////////////////////////////
-  // ROS_WARN_STREAM("ss");
+
+  // cloud point 의 normal_estimator(법선을 추정, 클라우드 포인트의 수직인 직선? )하여 normals 변수에 저장한다.
   pcl::PointCloud <pcl::Normal>::Ptr normals (new pcl::PointCloud <pcl::Normal>);
   pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> normal_estimator;
   normal_estimator.setSearchMethod (tree);
@@ -97,10 +95,6 @@ void cm_clustering::segmentation()
 
   // region_growing_segmentation(filtered_pc, normals, cluster_indices);
   euclidean_segmentation(filtered_pc, normals, cluster_indices);
-
-  // std::cout<< typeid(cloud).name() << std::endl;
-  // colorize(*cloud,*euclidean_cloud,{255,255,255});
-  // std::cout<< typeid(cloud).name() << std::endl;
 
   // ROS_WARN_STREAM(clusters.size());
   if(cluster_indices.size() > 0)
@@ -126,28 +120,44 @@ void cm_clustering::segmentation()
     // 큰놈만 뽑아서 publish
     // for euclidean color setting?
 
-    std::cout<< typeid(cloud).name() << std::endl;
-    colorize(*cloud,*euclidean_cloud,{255,255,255});
-    std::cout<< typeid(cloud).name() << std::endl;
-    // for (std::vector<pcl::PointIndices>::const_iterator it = cluster_indices.begin (); it != cluster_indices.end (); ++it)
-    // {
-    //   pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_cluster (new pcl::PointCloud<pcl::PointXYZRGB>);
-    //   for (std::vector<int>::const_iterator pit = it->indices.begin (); pit != it->indices.end (); ++pit)
-    //   cloud_cluster->points.push_back (cloud->points[*pit]); 
-    //   cloud_cluster->width = cloud_cluster->points.size ();
-    //   cloud_cluster->height = 1;
-    //   cloud_cluster->is_dense = true;
+    // std::cout<< typeid(cloud).name() << std::endl;
+    // colorize(*cloud,*euclidean_cloud,{255,255,255});
+    // std::cout<< typeid(cloud).name() << std::endl;
+
+    for (std::vector<pcl::PointIndices>::const_iterator it = cluster_indices.begin (); it != cluster_indices.end (); ++it)
+    {
+      pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_cluster (new pcl::PointCloud<pcl::PointXYZRGB>);
+      for (std::vector<int>::const_iterator pit = it->indices.begin (); pit != it->indices.end (); ++pit)
+      {
+        pcl::PointXYZRGB rgb_point;
+        // pcl::PointCloud<pcl::PointXYZRGB>::Ptr rgb_point (new pcl::PointCloud<pcl::PointXYZRGB>);
+        rgb_point.x = cloud -> points[*pit].x;
+        rgb_point.y = cloud -> points[*pit].y;
+        rgb_point.z = cloud -> points[*pit].z;
+        rgb_point.r = 255.0;
+        rgb_point.g = 255.0;
+        rgb_point.b = 255.0;
+        
+        cloud_cluster->points.push_back (rgb_point); 
+        cloud_cluster->width = cloud_cluster->points.size ();
+        cloud_cluster->height = 1;
+        cloud_cluster->is_dense = true;
+        pcl::toROSMsg(*cloud_cluster, cloud_out); //pcl -> pointcloud
+        cloud_out.header.frame_id = "map";
+        cloud_out.header.stamp = ros::Time::now();
+        seg_pub.publish(cloud_out);
+        
+      }
       
-    //   std::cout << "PointCloud representing the Cluster: " << cloud_cluster->points.size () << " data points." << std::endl;
-    // }
+      std::cout << "PointCloud representing the Cluster: " << cloud_cluster->points.size () << " data points." << std::endl;
+    }
     // // pcl::PointCloud<pcl::PointXYZRGB>::Ptr colored_cloud = reg.getColoredCloud ();
     
-    // pcl::toROSMsg(*cloud_cluster, cloud_out); //pcl -> pointcloud
     // // pcl::toROSMsg(*colored_cloud, cloud_out); //pcl -> pointcloud
     
-    // cloud_out.header.frame_id = "map";
-    // cloud_out.header.stamp = ros::Time::now();
-    // seg_pub.publish(cloud_out);
+    cloud_out.header.frame_id = "map";
+    cloud_out.header.stamp = ros::Time::now();
+    seg_pub.publish(cloud_out);
 
   }
   // ros::Duration(1.0).sleep();
@@ -188,8 +198,8 @@ void cm_clustering::euclidean_segmentation(pcl::PointCloud<pcl::PointXYZ>::Ptr c
 {
   
   ec.setInputCloud (cloud);       // 입력   
-  ec.setClusterTolerance (0.02);  // 2cm  
-  ec.setMinClusterSize (50);     // 최소 포인트 수 
+  ec.setClusterTolerance (0.3);  // 2cm  
+  ec.setMinClusterSize (20);     // 최소 포인트 수 
   ec.setMaxClusterSize (2500000);   // 최대 포인트 수
   ec.setSearchMethod (tree);      // 위에서 정의한 탐색 방법 지정 
   ec.extract (indices);   // 군집화 적용
