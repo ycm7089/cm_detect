@@ -21,9 +21,9 @@ public:
     ros::Subscriber point_sub;
     ros::Publisher seg_pub;
     sensor_msgs::PointCloud2 detection_point;
+    
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud;
-
-    pcl::PointCloud<pcl::PointXYZ> cloud_dst;
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr euclidean_cloud;
 
     pcl::RegionGrowing<pcl::PointXYZ, pcl::Normal> reg;
     pcl::EuclideanClusterExtraction<pcl::PointXYZ> ec;
@@ -34,6 +34,8 @@ public:
     {
       cloud.reset(new pcl::PointCloud<pcl::PointXYZ>());
       tree.reset(new pcl::search::KdTree<pcl::PointXYZ>());
+      euclidean_cloud.reset(new pcl::PointCloud<pcl::PointXYZRGB>());
+
       seg_pub = nh->advertise<sensor_msgs::PointCloud2>("PointXYZRGB",1);
       point_sub = nh->subscribe("/detection_node/PointCloud",1, &cm_clustering::detection_callback,this); 
     }
@@ -46,13 +48,17 @@ public:
     void euclidean_segmentation(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud,
                                 pcl::PointCloud <pcl::Normal>::Ptr normals,
                                 std::vector <pcl::PointIndices>& indices);
+
+    void colorize(const pcl::PointCloud<pcl::PointXYZ> &pc,
+                        pcl::PointCloud<pcl::PointXYZRGB> & pc_colored,
+                  const std::vector<int> &color);
 };
 
 void cm_clustering::detection_callback(const sensor_msgs::PointCloud2::Ptr& msg)
 {
   ROS_WARN_STREAM("Yes");
   pcl::fromROSMsg(*msg,*cloud);
-
+  // pcl::fromROS    pcl::PointCloud<pcl::PointXYZ> cloud_dst;
   segmentation();
 }
 
@@ -92,39 +98,56 @@ void cm_clustering::segmentation()
   // region_growing_segmentation(filtered_pc, normals, cluster_indices);
   euclidean_segmentation(filtered_pc, normals, cluster_indices);
 
+  // std::cout<< typeid(cloud).name() << std::endl;
+  // colorize(*cloud,*euclidean_cloud,{255,255,255});
+  // std::cout<< typeid(cloud).name() << std::endl;
+
   // ROS_WARN_STREAM(clusters.size());
   if(cluster_indices.size() > 0)
   {
-    int max_num_idx=-1;
-    int max_num = -1;
-    for(int i=0; i < cluster_indices.size(); ++i)
-    {
-      if(cluster_indices[i].size() > max_num)
-      {
-        max_num = cluster_indices[i].size();
-        max_num_idx = i;
-      }
-    }
+    // int max_num_idx=-1;
+    // int max_num = -1;
+    // for(int i=0; i < cluster_indices.size(); ++i)
+    // {
+      // if(cluster_indices[i].size() > max_num)
+      // {
+        // max_num = cluster_indices[i].size();
+        // max_num_idx = i;
+      // }
+    // }
 
     std::cout << "Number of clusters is equal to " << cluster_indices.size () << std::endl; //몇개의 segment로 분할 되었는지 로그로 확인
-    std::cout << "First cluster has " << cluster_indices[max_num_idx].indices.size () << " points." << std::endl;
+    std::cout << "First cluster has " << cluster_indices[0].indices.size () << " points." << std::endl;
     std::cout << "These are the indices of the points of the initial" <<
     std::endl << "cloud that belong to the first cluster:" << std::endl;
+    sensor_msgs::PointCloud2 cloud_out;
 
     //https://adioshun.gitbooks.io/3d_people_detection/content/ebook/part02/part02-chapter01/part02-chapter01-euclidean.html
     // 큰놈만 뽑아서 publish
-    // sensor_msgs::PointCloud2 cloud_out;
-    // cloud_cluster->points.push_back (cloud->points[*pit]); 
-    // cloud_cluster->width = cloud_cluster->points.size ();
-    // cloud_cluster->height = 1;
-    // cloud_cluster->is_dense = true;
-    // pcl::PointCloud<pcl::PointXYZRGB>::Ptr colored_cloud = ec.getColoredCloud ();
-    pcl::toROSMsg(*colored_cloud, cloud_out); //pcl -> pointcloud
-    // pcl::toROSMsg(*filtered_pc, cloud_out); //pcl -> pointcloud
+    // for euclidean color setting?
 
-    cloud_out.header.frame_id = "map";
-    cloud_out.header.stamp = ros::Time::now();
-    seg_pub.publish(cloud_out);
+    std::cout<< typeid(cloud).name() << std::endl;
+    colorize(*cloud,*euclidean_cloud,{255,255,255});
+    std::cout<< typeid(cloud).name() << std::endl;
+    // for (std::vector<pcl::PointIndices>::const_iterator it = cluster_indices.begin (); it != cluster_indices.end (); ++it)
+    // {
+    //   pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_cluster (new pcl::PointCloud<pcl::PointXYZRGB>);
+    //   for (std::vector<int>::const_iterator pit = it->indices.begin (); pit != it->indices.end (); ++pit)
+    //   cloud_cluster->points.push_back (cloud->points[*pit]); 
+    //   cloud_cluster->width = cloud_cluster->points.size ();
+    //   cloud_cluster->height = 1;
+    //   cloud_cluster->is_dense = true;
+      
+    //   std::cout << "PointCloud representing the Cluster: " << cloud_cluster->points.size () << " data points." << std::endl;
+    // }
+    // // pcl::PointCloud<pcl::PointXYZRGB>::Ptr colored_cloud = reg.getColoredCloud ();
+    
+    // pcl::toROSMsg(*cloud_cluster, cloud_out); //pcl -> pointcloud
+    // // pcl::toROSMsg(*colored_cloud, cloud_out); //pcl -> pointcloud
+    
+    // cloud_out.header.frame_id = "map";
+    // cloud_out.header.stamp = ros::Time::now();
+    // seg_pub.publish(cloud_out);
 
   }
   // ros::Duration(1.0).sleep();
@@ -170,6 +193,26 @@ void cm_clustering::euclidean_segmentation(pcl::PointCloud<pcl::PointXYZ>::Ptr c
   ec.setMaxClusterSize (2500000);   // 최대 포인트 수
   ec.setSearchMethod (tree);      // 위에서 정의한 탐색 방법 지정 
   ec.extract (indices);   // 군집화 적용
+}
+
+void cm_clustering::colorize(const pcl::PointCloud<pcl::PointXYZ> &pc,
+                    pcl::PointCloud<pcl::PointXYZRGB> & pc_colored,
+                    const std::vector<int> &color)
+{
+  int N = pc.points.size();
+  pc_colored.clear();
+  pcl::PointXYZRGB pt_tmp;
+  for (int i = 0; i< N; i++)
+  {
+    const auto &pt = pc.points[i];
+    pt_tmp.x = pt.x;
+    pt_tmp.y = pt.y;
+    pt_tmp.z = pt.z;
+    pt_tmp.r = color[0];
+    pt_tmp.g = color[1];
+    pt_tmp.b = color[2];
+    pc_colored.points.emplace_back(pt_tmp);
+  }
 }
 
 int main(int argc, char** argv)
