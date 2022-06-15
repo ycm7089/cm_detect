@@ -119,18 +119,20 @@ void cm_clustering::segmentation()
         rgb_point.z = cloud -> points[*pit].z;
         rgb_point.r = 255.0;
         rgb_point.g = 255.0;
-        rgb_point.b = 255.0;
-        
+        rgb_point.b = 0.0;
+        rgb_point.a = 0.0;
+        //a :: 알파 채널 값은 완전한 투명 상태인 0.0부터 투명도가 전혀 없는 1.0 사이의 값을 가집니다.
         cloud_cluster->points.push_back (rgb_point); 
         cloud_cluster->width = cloud_cluster->points.size ();
         cloud_cluster->height = 1;
         cloud_cluster->is_dense = true;
-        pcl::toROSMsg(*cloud_cluster, cloud_out); //pcl -> pointcloud
-        cloud_out.header.frame_id = "map";
-        cloud_out.header.stamp = ros::Time::now();
-        seg_pub.publish(cloud_out);
+       
         
       }
+      pcl::toROSMsg(*cloud_cluster, cloud_out); //pcl -> pointcloud
+      cloud_out.header.frame_id = "map";
+      cloud_out.header.stamp = ros::Time::now();
+      seg_pub.publish(cloud_out);
       
       std::cout << "PointCloud representing the Cluster: " << cloud_cluster->points.size () << " data points." << std::endl;
     }
