@@ -14,6 +14,7 @@
 #include <sensor_msgs/PointCloud2.h>
 
 #include<pcl_conversions/pcl_conversions.h>
+#include <geometry_msgs/Pose.h>
 
 class cm_clustering
 {
@@ -21,15 +22,15 @@ public:
     int counter = 0;
     ros::Subscriber point_sub;
     ros::Publisher seg_pub;
+    ros::Publisher geo_pub;
     
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud;
-
     pcl::RegionGrowing<pcl::PointXYZ, pcl::Normal> reg;
     pcl::EuclideanClusterExtraction<pcl::PointXYZ> ec;
-
     pcl::search::Search<pcl::PointXYZ>::Ptr tree;
 
     sensor_msgs::PointCloud2 cloud_out;
+    geometry_msgs::Pose BBox_pose;
 
     cm_clustering(ros::NodeHandle *nh)
     {
@@ -37,6 +38,7 @@ public:
       tree.reset(new pcl::search::KdTree<pcl::PointXYZ>());
 
       seg_pub = nh->advertise<sensor_msgs::PointCloud2>("PointXYZRGB",1);
+      geo_pub = nh -> advertise<geometry_msgs::Pose> ("Center_PointXY", 1);
       point_sub = nh->subscribe("/detection_node/PointCloud",1, &cm_clustering::detection_callback,this); 
     }
     void detection_callback(const sensor_msgs::PointCloud2::Ptr& msg);
@@ -97,10 +99,10 @@ void cm_clustering::segmentation()
   // ROS_WARN_STREAM(clusters.size());
   if(cluster_indices.size() > 0)
   {
-   // std::cout << "Number of clusters is equal to " << cluster_indices.size () << std::endl; //몇개의 segment로 분할 되었는지 로그로 확인
-   // std::cout << "First cluster has " << cluster_indices[0].indices.size () << " points." << std::endl;
-    //std::cout << "These are the indices of the points of the initial" <<
-    //std::endl << "cloud that belong to the first cluster:" << std::endl;
+    // std::cout << "Number of clusters is equal to " << cluster_indices.size () << std::endl; //몇개의 segment로 분할 되었는지 로그로 확인
+    // std::cout << "First cluster has " << cluster_indices[0].indices.size () << " points." << std::endl;
+    // std::cout << "These are the indices of the points of the initial" <<
+    // std::endl << "cloud that belong to the first cluster:" << std::endl;
 
     //https://adioshun.gitbooks.io/3d_people_detection/content/ebook/part02/part02-chapter01/part02-chapter01-euclidean.html
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_cluster (new pcl::PointCloud<pcl::PointXYZRGB>);
@@ -120,39 +122,56 @@ void cm_clustering::segmentation()
         }
     }
 
-   if(max_idx == -1)
-        return;
+    if(max_idx == -1)
+      return;
     else
     {
-        if(max_idx == 1) ROS_WARN_STREAM("YAHO");
-      
-        for(std::vector<int>::const_iterator pit = cluster_indices[max_idx].indices.begin (); 
-            pit != cluster_indices[max_idx].indices.end (); ++pit)
+      if(max_idx == 1) ROS_WARN_STREAM("YAHO");
+      int cm_count = 0;
+      for(std::vector<int>::const_iterator pit = cluster_indices[max_idx].indices.begin (); 
+          pit != cluster_indices[max_idx].indices.end (); ++pit)
+      {
+        //ROS_WARN_STREAM("222222");
+        pcl::PointXYZRGB rgb_point;
+        //pcl::PointCloud<pcl::PointXYZRGB>::Ptr rgb_point (new pcl::PointCloud<pcl::PointXYZRGB>);
+        rgb_point.x = filtered_pc -> points[*pit].x;
+        rgb_point.y = filtered_pc -> points[*pit].y;
+        rgb_point.z = filtered_pc -> points[*pit].z;
+        rgb_point.r = 255.0;
+        rgb_point.g = 255.0;
+        rgb_point.b = 0.0;
+        rgb_point.a = 0.5;
+        //a :: 알파 채널 값은 완전한 투명 상태인 0.0부터 투명도가 전혀 없는 1.0 사이의 값을 가집니다.
+        cloud_cluster->points.push_back (rgb_point); 
+        // ROS_WARN_STREAM(filtered_pc -> points[0].x);
+        cloud_cluster->width = cloud_cluster->points.size ();
+        cloud_cluster->height = 1;
+        cloud_cluster->is_dense = true;
+
+        cm_count = cm_count + 1;
+        // ROS_WARN_STREAM(cm_count);
+        if( pit == cluster_indices[max_idx].indices.end () -1)
         {
-            //ROS_WARN_STREAM("222222");
-            pcl::PointXYZRGB rgb_point;
-            //pcl::PointCloud<pcl::PointXYZRGB>::Ptr rgb_point (new pcl::PointCloud<pcl::PointXYZRGB>);
-            rgb_point.x = filtered_pc -> points[*pit].x;
-            rgb_point.y = filtered_pc -> points[*pit].y;
-            rgb_point.z = filtered_pc -> points[*pit].z;
-            rgb_point.r = 255.0;
-            rgb_point.g = 255.0;
-            rgb_point.b = 0.0;
-            rgb_point.a = 0.5;
-            //a :: 알파 채널 값은 완전한 투명 상태인 0.0부터 투명도가 전혀 없는 1.0 사이의 값을 가집니다.
-            cloud_cluster->points.push_back (rgb_point); 
-            cloud_cluster->width = cloud_cluster->points.size ();
-            cloud_cluster->height = 1;
-            cloud_cluster->is_dense = true;        
-          
+          ROS_WARN_STREAM(cm_count);
+          // 카메라 축 생각해라
+          // ROS_WARN_STREAM(cluster_indices[max_idx].indices.end ());
+          BBox_pose.position.x = ( filtered_pc -> points[0].x + filtered_pc -> points[*pit].x ) /2;
+          BBox_pose.position.y = ( filtered_pc -> points[0].y + filtered_pc -> points[*pit].y ) /2;
+          ROS_WARN_STREAM(filtered_pc -> points[0].x);
+          ROS_WARN_STREAM(filtered_pc -> points[*pit].x);
+          ROS_WARN_STREAM(BBox_pose.position.x);
+          geo_pub.publish(BBox_pose);
         }
-        
-          pcl::toROSMsg(*cloud_cluster, cloud_out); //pcl -> pointcloud
-          cloud_out.header.frame_id = "map";
-          cloud_out.header.stamp = ros::Time::now();
-          seg_pub.publish(cloud_out);
-       } 
-    
+
+      }
+
+      
+      pcl::toROSMsg(*cloud_cluster, cloud_out); //pcl -> pointcloud
+      cloud_out.header.frame_id = "map";
+      cloud_out.header.stamp = ros::Time::now();
+      seg_pub.publish(cloud_out);
+    }  
+  
     // region_growing
     //pcl::PointCloud<pcl::PointXYZRGB>::Ptr colored_cloud = reg.getColoredCloud (); 
     //pcl::toROSMsg(*colored_cloud, cloud_out); //pcl -> pointcloud
