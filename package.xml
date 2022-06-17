@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>yolov5_pytorch_ros</name>
+  <name>cm_detect</name>
   <version>0.1.0</version>
   <description>The YOLOv3 PyTorch ROS wrapper package</description>
 
