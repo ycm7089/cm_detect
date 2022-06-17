@@ -18,6 +18,7 @@
 class cm_clustering
 {
 public:
+    int counter = 0;
     ros::Subscriber point_sub;
     ros::Publisher seg_pub;
     
@@ -51,9 +52,14 @@ public:
 
 void cm_clustering::detection_callback(const sensor_msgs::PointCloud2::Ptr& msg)
 {
-  ROS_WARN_STREAM("Yes");
-  pcl::fromROSMsg(*msg,*cloud);
-  segmentation();
+  //ROS_WARN_STREAM("Yes");
+  if(counter % 15 == 0)
+  {
+      pcl::fromROSMsg(*msg,*cloud);
+      segmentation();
+  }
+  
+  counter++;
 }
 
 void cm_clustering::segmentation()
@@ -85,56 +91,75 @@ void cm_clustering::segmentation()
 
   std::vector <pcl::PointIndices> cluster_indices;
 
-  // region_growing_segmentation(filtered_pc, normals, cluster_indices);
+  //region_growing_segmentation(filtered_pc, normals, cluster_indices);
   euclidean_segmentation(filtered_pc, normals, cluster_indices);
 
   // ROS_WARN_STREAM(clusters.size());
   if(cluster_indices.size() > 0)
   {
-    std::cout << "Number of clusters is equal to " << cluster_indices.size () << std::endl; //몇개의 segment로 분할 되었는지 로그로 확인
-    std::cout << "First cluster has " << cluster_indices[0].indices.size () << " points." << std::endl;
-    std::cout << "These are the indices of the points of the initial" <<
-    std::endl << "cloud that belong to the first cluster:" << std::endl;
+   // std::cout << "Number of clusters is equal to " << cluster_indices.size () << std::endl; //몇개의 segment로 분할 되었는지 로그로 확인
+   // std::cout << "First cluster has " << cluster_indices[0].indices.size () << " points." << std::endl;
+    //std::cout << "These are the indices of the points of the initial" <<
+    //std::endl << "cloud that belong to the first cluster:" << std::endl;
 
     //https://adioshun.gitbooks.io/3d_people_detection/content/ebook/part02/part02-chapter01/part02-chapter01-euclidean.html
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_cluster (new pcl::PointCloud<pcl::PointXYZRGB>);
     
     // euclidean
-    for (std::vector<pcl::PointIndices>::const_iterator it = cluster_indices.begin (); it != cluster_indices.end (); ++it)
-    {
-      pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_cluster (new pcl::PointCloud<pcl::PointXYZRGB>);
-      for (std::vector<int>::const_iterator pit = it->indices.begin (); pit != it->indices.end (); ++pit)
-      {
-        pcl::PointXYZRGB rgb_point;
-        // pcl::PointCloud<pcl::PointXYZRGB>::Ptr rgb_point (new pcl::PointCloud<pcl::PointXYZRGB>);
-        rgb_point.x = cloud -> points[*pit].x;
-        rgb_point.y = cloud -> points[*pit].y;
-        rgb_point.z = cloud -> points[*pit].z;
-        rgb_point.r = 255.0;
-        rgb_point.g = 255.0;
-        rgb_point.b = 0.0;
-        rgb_point.a = 0.5;
-        //a :: 알파 채널 값은 완전한 투명 상태인 0.0부터 투명도가 전혀 없는 1.0 사이의 값을 가집니다.
-        cloud_cluster->points.push_back (rgb_point); 
-        cloud_cluster->width = cloud_cluster->points.size ();
-        cloud_cluster->height = 1;
-        cloud_cluster->is_dense = true;        
-      }
+    double max_num = -1;
+    int max_idx = -1;
 
-      pcl::toROSMsg(*cloud_cluster, cloud_out); //pcl -> pointcloud
-      cloud_out.header.frame_id = "map";
-      cloud_out.header.stamp = ros::Time::now();
-      seg_pub.publish(cloud_out);
-      
-      std::cout << "PointCloud representing the Cluster: " << cloud_cluster->points.size () << " data points." << std::endl;
+    for (int i=0; i < cluster_indices.size(); ++i)
+    {
+        std::cout << max_num << " < " << cluster_indices[i].indices.size() << std::endl;
+        if(max_num < cluster_indices[i].indices.size())
+        {
+            max_num = (cluster_indices[i].indices.size());
+            max_idx = i;
+            std::cout << "max_idx is :" << max_idx << " max_num is : " << max_num << std::endl;
+        }
     }
+
+   if(max_idx == -1)
+        return;
+    else
+    {
+        if(max_idx == 1) ROS_WARN_STREAM("YAHO");
+      
+        for(std::vector<int>::const_iterator pit = cluster_indices[max_idx].indices.begin (); 
+            pit != cluster_indices[max_idx].indices.end (); ++pit)
+        {
+            //ROS_WARN_STREAM("222222");
+            pcl::PointXYZRGB rgb_point;
+            //pcl::PointCloud<pcl::PointXYZRGB>::Ptr rgb_point (new pcl::PointCloud<pcl::PointXYZRGB>);
+            rgb_point.x = filtered_pc -> points[*pit].x;
+            rgb_point.y = filtered_pc -> points[*pit].y;
+            rgb_point.z = filtered_pc -> points[*pit].z;
+            rgb_point.r = 255.0;
+            rgb_point.g = 255.0;
+            rgb_point.b = 0.0;
+            rgb_point.a = 0.5;
+            //a :: 알파 채널 값은 완전한 투명 상태인 0.0부터 투명도가 전혀 없는 1.0 사이의 값을 가집니다.
+            cloud_cluster->points.push_back (rgb_point); 
+            cloud_cluster->width = cloud_cluster->points.size ();
+            cloud_cluster->height = 1;
+            cloud_cluster->is_dense = true;        
+          
+        }
+        
+          pcl::toROSMsg(*cloud_cluster, cloud_out); //pcl -> pointcloud
+          cloud_out.header.frame_id = "map";
+          cloud_out.header.stamp = ros::Time::now();
+          seg_pub.publish(cloud_out);
+       } 
     
     // region_growing
-    // pcl::PointCloud<pcl::PointXYZRGB>::Ptr colored_cloud = reg.getColoredCloud (); 
-    // pcl::toROSMsg(*colored_cloud, cloud_out); //pcl -> pointcloud
+    //pcl::PointCloud<pcl::PointXYZRGB>::Ptr colored_cloud = reg.getColoredCloud (); 
+    //pcl::toROSMsg(*colored_cloud, cloud_out); //pcl -> pointcloud
     
-    // cloud_out.header.frame_id = "map";
-    // cloud_out.header.stamp = ros::Time::now();
-    // seg_pub.publish(cloud_out);
+    //cloud_out.header.frame_id = "map";
+    //cloud_out.header.stamp = ros::Time::now();
+    //seg_pub.publish(cloud_out);
 
   }
   // ros::Duration(1.0).sleep();
@@ -175,8 +200,8 @@ void cm_clustering::euclidean_segmentation(pcl::PointCloud<pcl::PointXYZ>::Ptr c
 {
   
   ec.setInputCloud (cloud);       // 입력   
-  ec.setClusterTolerance (0.3);  // 2cm  
-  ec.setMinClusterSize (20);     // 최소 포인트 수 
+  ec.setClusterTolerance (0.05);  // 2cm  바꿔야할수도!!!
+  ec.setMinClusterSize (30);     // 최소 포인트 수 
   ec.setMaxClusterSize (2500000);   // 최대 포인트 수
   ec.setSearchMethod (tree);      // 위에서 정의한 탐색 방법 지정 
   ec.extract (indices);   // 군집화 적용
@@ -187,7 +212,7 @@ int main(int argc, char** argv)
   ros::init(argc, argv, "Clustering_node");
   
   ros::NodeHandle nh("~");
-  ros::Rate loop_rate(30); //Hz
+  ros::Rate loop_rate(300); //Hz
 
   cm_clustering clustering(&nh);
   while (ros::ok())

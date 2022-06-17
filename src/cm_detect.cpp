@@ -132,9 +132,9 @@ void cm_detect::realcallback(const detection_msgs::BoundingBoxesConstPtr& bbox, 
         cv::imshow("depth8_3c", depth8_3c);
         cv::waitKey(1);
 
-        for(int u = xmin_s; u < xmax_s; u++)
+        for(int u = xmin_s; u < xmax_s; u=u+3)
         {
-            for(int v = ymin_s; v < ymax_s; v++)
+            for(int v = ymin_s; v < ymax_s; v=v+3)
             {
                 double z = depth_mat.at<unsigned short>(v ,u) * 0.001; // unit : [m]
 
@@ -151,20 +151,21 @@ void cm_detect::realcallback(const detection_msgs::BoundingBoxesConstPtr& bbox, 
                     Pose_xyz.position.z = z;
 
                     cloud.push_back(pt);
-                    pcl::toROSMsg(cloud, cloud_out);
-                    cloud_out.header.frame_id = "map";
-                    cloud_out.header.stamp = ros::Time::now();
-                    
-                    Pose_pub.publish(Pose_xyz);
-                    cloud_pub.publish(cloud_out);
+
                 }
             }
         }
+        pcl::toROSMsg(cloud, cloud_out);
+        cloud_out.header.frame_id = "map";
+        cloud_out.header.stamp = ros::Time::now();
+        
+        Pose_pub.publish(Pose_xyz);
+        cloud_pub.publish(cloud_out);
 
          
-       
+       cloud.clear();
     }
-    cloud.clear();
+
 
 }
 
