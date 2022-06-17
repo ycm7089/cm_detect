@@ -12,6 +12,9 @@
 #include <pcl/segmentation/extract_clusters.h>
 #include <typeinfo>
 #include <sensor_msgs/PointCloud2.h>
+#include <tf/transform_broadcaster.h>
+#include <tf/transform_listener.h>
+#include <tf_conversions/tf_eigen.h>
 
 #include<pcl_conversions/pcl_conversions.h>
 #include <geometry_msgs/Pose.h>
@@ -24,13 +27,21 @@ public:
     ros::Publisher seg_pub;
     ros::Publisher geo_pub;
     
+    tf::TransformBroadcaster br;
+	tf::Transform transform;
+	tf::Transform listner_transform;
+	tf::StampedTransform stamped_listner_transform;
+    tf::TransformListener listener;
+    
+    Eigen::Isometry3d eigen_transform;
+    
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud;
     pcl::RegionGrowing<pcl::PointXYZ, pcl::Normal> reg;
     pcl::EuclideanClusterExtraction<pcl::PointXYZ> ec;
     pcl::search::Search<pcl::PointXYZ>::Ptr tree;
 
     sensor_msgs::PointCloud2 cloud_out;
-    geometry_msgs::Pose BBox_pose;
+    geometry_msgs::PoseStamped BBox_pose;
 
     cm_clustering(ros::NodeHandle *nh)
     {
@@ -38,11 +49,13 @@ public:
       tree.reset(new pcl::search::KdTree<pcl::PointXYZ>());
 
       seg_pub = nh->advertise<sensor_msgs::PointCloud2>("PointXYZRGB",1);
-      geo_pub = nh -> advertise<geometry_msgs::Pose> ("Center_PointXY", 1);
+      geo_pub = nh -> advertise<geometry_msgs::PoseStamped> ("Center_PointXY", 1);
       point_sub = nh->subscribe("/detection_node/PointCloud",1, &cm_clustering::detection_callback,this); 
     }
     void detection_callback(const sensor_msgs::PointCloud2::Ptr& msg);
     void segmentation();
+    void tf_publisher();
+    void tf_listener();
     void region_growing_segmentation(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud,
                                      pcl::PointCloud <pcl::Normal>::Ptr normals,
                                      std::vector <pcl::PointIndices>& indices);
@@ -62,6 +75,25 @@ void cm_clustering::detection_callback(const sensor_msgs::PointCloud2::Ptr& msg)
   }
   
   counter++;
+}
+
+void cm_clustering::tf_listener()
+{
+    try
+    {
+        listener.lookupTransform("/map", "/camera",ros::Time(0), stamped_listner_transform);
+        listner_transform = stamped_listner_transform;
+
+        tf::transformTFToEigen(listner_transform, eigen_transform);
+        // ROS_INFO("xx %.3f yy %.3f zz %.3f", transform.getOrigin().x(),transform.getOrigin().y(),transform.getOrigin().z());
+        
+    }
+    catch (tf::TransformException &ex)
+    {
+        ROS_ERROR("%s",ex.what());
+        ros::Duration(1.0).sleep();
+        // continue;
+    }
 }
 
 void cm_clustering::segmentation()
@@ -155,19 +187,37 @@ void cm_clustering::segmentation()
           ROS_WARN_STREAM(cm_count);
           // 카메라 축 생각해라
           // ROS_WARN_STREAM(cluster_indices[max_idx].indices.end ());
-          BBox_pose.position.x = ( filtered_pc -> points[0].x + filtered_pc -> points[*pit].x ) /2;
-          BBox_pose.position.y = ( filtered_pc -> points[0].y + filtered_pc -> points[*pit].y ) /2;
-          ROS_WARN_STREAM(filtered_pc -> points[0].x);
-          ROS_WARN_STREAM(filtered_pc -> points[*pit].x);
-          ROS_WARN_STREAM(BBox_pose.position.x);
+          BBox_pose.pose.position.x = ( filtered_pc -> points[*cluster_indices[max_idx].indices.begin()].x + filtered_pc -> points[*pit].x ) /2;
+          BBox_pose.pose.position.y = ( filtered_pc -> points[*cluster_indices[max_idx].indices.begin()].y + filtered_pc -> points[*pit].y ) /2;
+          BBox_pose.pose.position.z = ( filtered_pc -> points[*cluster_indices[max_idx].indices.begin()].z + filtered_pc -> points[*pit].z ) /2;
+         // ROS_WARN_STREAM(filtered_pc -> points[0].x);
+         // ROS_WARN_STREAM(filtered_pc -> points[*pit].x);
+         // ROS_WARN_STREAM(BBox_pose.position.x);
+          
+          tf_listener();
+          Eigen::Vector3d pos;
+          pos << BBox_pose.pose.position.x, BBox_pose.pose.position.y, BBox_pose.pose.position.z-0.5;
+          
+          Eigen::Vector3d transformed_pose = eigen_transform * pos;
+          
+          std::cout << pos.matrix() << std::endl;
+          std::cout << "==" << std::endl;
+          std::cout << transformed_pose.matrix() << std::endl;
+          
+          BBox_pose.header.stamp = ros::Time::now();
+          BBox_pose.header.frame_id = "map"; 
+          BBox_pose.pose.position.x = transformed_pose.x();
+          BBox_pose.pose.position.y = transformed_pose.y();
+          BBox_pose.pose.position.z = transformed_pose.z();          
+
           geo_pub.publish(BBox_pose);
         }
 
       }
-
+      //map 을 기준으로하는 camera그거 tf listerner 만들기
       
       pcl::toROSMsg(*cloud_cluster, cloud_out); //pcl -> pointcloud
-      cloud_out.header.frame_id = "map";
+      cloud_out.header.frame_id = "camera";
       cloud_out.header.stamp = ros::Time::now();
       seg_pub.publish(cloud_out);
     }  
@@ -176,7 +226,7 @@ void cm_clustering::segmentation()
     //pcl::PointCloud<pcl::PointXYZRGB>::Ptr colored_cloud = reg.getColoredCloud (); 
     //pcl::toROSMsg(*colored_cloud, cloud_out); //pcl -> pointcloud
     
-    //cloud_out.header.frame_id = "map";
+    //cloud_out.header.frame_id = "camera";
     //cloud_out.header.stamp = ros::Time::now();
     //seg_pub.publish(cloud_out);
 
@@ -226,6 +276,13 @@ void cm_clustering::euclidean_segmentation(pcl::PointCloud<pcl::PointXYZ>::Ptr c
   ec.extract (indices);   // 군집화 적용
 }
 
+void cm_clustering::tf_publisher()
+{
+  transform.setOrigin( tf::Vector3(0.25, 0.0, 0.4) );
+  transform.setRotation(tf::createQuaternionFromRPY(-90.0*M_PI/180.0, 0.0, -90.0*M_PI/180.0));
+  br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "base_link", "camera"));
+}
+
 int main(int argc, char** argv)
 {
   ros::init(argc, argv, "Clustering_node");
@@ -236,6 +293,7 @@ int main(int argc, char** argv)
   cm_clustering clustering(&nh);
   while (ros::ok())
   {
+    clustering.tf_publisher();
     ros::spinOnce();
     loop_rate.sleep();
   }  

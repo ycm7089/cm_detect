@@ -156,7 +156,7 @@ void cm_detect::realcallback(const detection_msgs::BoundingBoxesConstPtr& bbox, 
             }
         }
         pcl::toROSMsg(cloud, cloud_out);
-        cloud_out.header.frame_id = "map";
+        cloud_out.header.frame_id = "camera";
         cloud_out.header.stamp = ros::Time::now();
         
         Pose_pub.publish(Pose_xyz);
