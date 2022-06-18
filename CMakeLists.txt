@@ -43,7 +43,7 @@ target_link_libraries(Clustering_node ${catkin_LIBRARIES} ${PCL_LIBRARIES} pcl_v
 add_definitions(${PCL_DEFINITIONS})
 
 include_directories(include ${catkin_INCLUDE_DIRS} )
-add_executable(tf_node src/cm_tf.cpp)
-target_link_libraries(tf_node ${catkin_LIBRARIES})
+add_executable(cm_move_base_node src/cm_move_base.cpp)
+target_link_libraries(cm_move_base_node ${catkin_LIBRARIES})
 
 

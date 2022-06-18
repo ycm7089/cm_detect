@@ -17,7 +17,7 @@
 #include <tf_conversions/tf_eigen.h>
 
 #include<pcl_conversions/pcl_conversions.h>
-#include <geometry_msgs/Pose.h>
+#include <geometry_msgs/PoseStamped.h>
 
 class cm_clustering
 {
@@ -29,8 +29,8 @@ public:
     
     tf::TransformBroadcaster br;
 	tf::Transform transform;
-	tf::Transform listner_transform;
-	tf::StampedTransform stamped_listner_transform;
+	tf::Transform listener_tranform;
+	tf::StampedTransform stamped_listener_tranform;
     tf::TransformListener listener;
     
     Eigen::Isometry3d eigen_transform;
@@ -81,10 +81,12 @@ void cm_clustering::tf_listener()
 {
     try
     {
-        listener.lookupTransform("/map", "/camera",ros::Time(0), stamped_listner_transform);
-        listner_transform = stamped_listner_transform;
+        // bagfile 이용시 ros::Time(0)
+        // 실험시 ros::Time::now()
+        listener.lookupTransform("/map", "/camera",ros::Time(0), stamped_listener_tranform);
+        listener_tranform = stamped_listener_tranform;
 
-        tf::transformTFToEigen(listner_transform, eigen_transform);
+        tf::transformTFToEigen(listener_tranform, eigen_transform);
         // ROS_INFO("xx %.3f yy %.3f zz %.3f", transform.getOrigin().x(),transform.getOrigin().y(),transform.getOrigin().z());
         
     }
