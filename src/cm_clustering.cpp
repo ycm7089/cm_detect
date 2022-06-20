@@ -83,7 +83,7 @@ void cm_clustering::tf_listener()
     {
         // bagfile 이용시 ros::Time(0)
         // 실험시 ros::Time::now()
-        listener.lookupTransform("/map", "/camera",ros::Time(0), stamped_listener_tranform);
+        listener.lookupTransform("/map", "/camera_link",ros::Time(0), stamped_listener_tranform);
         listener_tranform = stamped_listener_tranform;
 
         tf::transformTFToEigen(listener_tranform, eigen_transform);
@@ -216,10 +216,10 @@ void cm_clustering::segmentation()
         }
 
       }
-      //map 을 기준으로하는 camera그거 tf listerner 만들기
+      //map 을 기준으로하는 camera_link그거 tf listerner 만들기
       
       pcl::toROSMsg(*cloud_cluster, cloud_out); //pcl -> pointcloud
-      cloud_out.header.frame_id = "camera";
+      cloud_out.header.frame_id = "camera_link";
       cloud_out.header.stamp = ros::Time::now();
       seg_pub.publish(cloud_out);
     }  
@@ -228,7 +228,7 @@ void cm_clustering::segmentation()
     //pcl::PointCloud<pcl::PointXYZRGB>::Ptr colored_cloud = reg.getColoredCloud (); 
     //pcl::toROSMsg(*colored_cloud, cloud_out); //pcl -> pointcloud
     
-    //cloud_out.header.frame_id = "camera";
+    //cloud_out.header.frame_id = "camera_link";
     //cloud_out.header.stamp = ros::Time::now();
     //seg_pub.publish(cloud_out);
 
@@ -282,7 +282,8 @@ void cm_clustering::tf_publisher()
 {
   transform.setOrigin( tf::Vector3(0.25, 0.0, 0.4) );
   transform.setRotation(tf::createQuaternionFromRPY(-90.0*M_PI/180.0, 0.0, -90.0*M_PI/180.0));
-  br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "base_link", "camera"));
+  br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "base_link", "camera_link"));
+
 }
 
 int main(int argc, char** argv)
